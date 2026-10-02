@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+
+# Data & outputs: raw data is never committed; samples are.
+data/raw/**
+!data/raw/**/
+!data/raw/**/.gitkeep
+artifacts/**
+!artifacts/.gitkeep
+mlruns/
+mlartifacts/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# Env / secrets
+.env
+*.pem
+
+# Node
+node_modules/
+.next/
+
+# Notebooks
+.ipynb_checkpoints/

@@ -1,0 +1,35 @@
+{
+  "name": "Demand Intelligence",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
+  "hostRequirements": { "cpus": 4, "memory": "16gb", "storage": "32gb" },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" },
+    "ghcr.io/devcontainers/features/aws-cli:1": {}
+  },
+  "secrets": {
+    "KAGGLE_USERNAME": { "description": "Kaggle username, for downloading M5" },
+    "KAGGLE_KEY": { "description": "Kaggle API key, for downloading M5" }
+  },
+  "postCreateCommand": "pip install --user uv && cp -n .env.example .env && make install",
+  "forwardPorts": [5432, 5000, 8000, 3000],
+  "portsAttributes": {
+    "5000": { "label": "MLflow" },
+    "8000": { "label": "API" },
+    "3000": { "label": "Web" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker",
+        "ms-toolsai.jupyter",
+        "anthropic.claude-code"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/home/vscode/.venvs/demand-intel/bin/python"
+      }
+    }
+  }
+}
