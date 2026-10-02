@@ -1,4 +1,5 @@
 from datetime import date
+from itertools import pairwise
 
 import pytest
 
@@ -29,7 +30,7 @@ def test_day_roundtrip_and_bounds() -> None:
 
 def test_folds_are_contiguous_and_end_at_test() -> None:
     folds = (*BACKTEST_FOLDS, TEST_FOLD)
-    for prev, nxt in zip(folds, folds[1:], strict=False):
+    for prev, nxt in pairwise(folds):
         assert nxt.first_target == prev.last_target + 1
     assert TEST_FOLD.last_target == LAST_LABELED_DAY
 
