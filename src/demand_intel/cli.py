@@ -224,6 +224,23 @@ def ingest_m5(
         typer.echo(f"  ledger: {record(settings.database_url, report)} new row(s)")
 
 
+@ingest_app.command("text")
+def ingest_text(force: bool = typer.Option(False, help="Refetch even if unchanged.")) -> None:
+    """Download and validate the openFDA food recall corpus (spec §2.4)."""
+    from demand_intel.pipelines.ingestion.text import build_recalls, download_recalls
+
+    raw = download_recalls(settings.raw_dir, force=force)
+    out = settings.validated_dir / "text" / "recalls.parquet"
+    report = build_recalls(raw, out, settings.quarantine_dir / "text" / "recalls.parquet")
+    typer.echo(
+        f"text: {report.loaded}/{report.total} loaded, {report.rejected} rejected "
+        f"(source updated {report.last_updated})"
+    )
+    for reason, n in report.reasons.items():
+        if n:
+            typer.echo(f"  {reason}: {n}")
+
+
 @ingest_app.command("weather")
 def ingest_weather(force: bool = typer.Option(False, help="Refetch even if unchanged.")) -> None:
     """Download Open-Meteo history and build the state × day weather table."""
