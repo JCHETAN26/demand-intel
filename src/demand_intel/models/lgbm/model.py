@@ -78,9 +78,27 @@ class LightGBMForecaster:
     max_rounds: int = 1500
     early_stopping: int = 50
     model_dir: Path | None = None  # if set, boosters + metadata are saved per fold
+    # Mean-bias correction: per-category factor Σy / Σŷ on the out-of-sample calibration
+    # window, clipped to 1 ± bias_clip, applied to the point forecast only (quantiles keep
+    # their own empirical map).
+    bias_correct: bool = False
+    bias_clip: float = 0.10
     log: list[dict[str, Any]] = field(default_factory=list)
 
-    def _fit_bucket(self, ctx: FoldContext, hb: int) -> tuple[lgb.Booster, QuantileMap]:
+    def _bias_factors(
+        self, ctx: FoldContext, series_idx: np.ndarray, y: np.ndarray, pred: np.ndarray
+    ) -> dict[str, float]:
+        cats = ctx.data.series["cat_id"].to_numpy()[ctx.rows][series_idx]
+        out = {}
+        for c in np.unique(cats):
+            sel = cats == c
+            ratio = float(y[sel].sum() / max(pred[sel].sum(), 1e-9))
+            out[str(c)] = float(np.clip(ratio, 1 - self.bias_clip, 1 + self.bias_clip))
+        return out
+
+    def _fit_bucket(
+        self, ctx: FoldContext, hb: int
+    ) -> tuple[lgb.Booster, QuantileMap, dict[str, float]]:
         o = ctx.origin
         fit_days = np.arange(o - CALIB_DAYS - self.train_days + 1, o - CALIB_DAYS + 1)
         cal_days = np.arange(o - CALIB_DAYS + 1, o + 1)
@@ -104,6 +122,11 @@ class LightGBMForecaster:
         )
         pred = booster.predict(va.X[va.eligible], num_iteration=booster.best_iteration)
         qmap = QuantileMap.fit(np.asarray(pred), va.y[va.eligible])
+        factors = (
+            self._bias_factors(ctx, va.series_idx[va.eligible], va.y[va.eligible], np.asarray(pred))
+            if self.bias_correct
+            else {}
+        )
         self.log.append(
             {
                 "fold": ctx.fold.name,
@@ -111,16 +134,17 @@ class LightGBMForecaster:
                 "train_rows": int(tr.eligible.sum()),
                 "best_iteration": int(booster.best_iteration),
                 "fit_seconds": time.perf_counter() - t0,
+                "bias_factors": factors,
             }
         )
-        return booster, qmap
+        return booster, qmap, factors
 
     def forecast(self, ctx: FoldContext) -> Forecast:
         n = len(ctx.rows)
         point = np.zeros((n, HORIZON), dtype=np.float32)
         quant = {q: np.zeros((n, HORIZON), dtype=np.float32) for q in QUANTILES}
         for lo, hi in BUCKETS:
-            booster, qmap = self._fit_bucket(ctx, hi)
+            booster, qmap, factors = self._fit_bucket(ctx, hi)
             days = np.arange(ctx.origin + lo, ctx.origin + hi + 1)
             ff = build_features(
                 ctx.data,
@@ -135,7 +159,11 @@ class LightGBMForecaster:
             on_sale = ~np.isnan(np.asarray(ctx.data.prices)[ctx.rows][:, days - 1]).ravel()
             pred = np.where(on_sale, np.clip(pred, 0, None), 0.0)
             cols = slice(lo - 1, hi)
-            point[:, cols] = pred.reshape(n, len(days))
+            scale = np.ones(len(pred))
+            if factors:
+                cats = ctx.data.series["cat_id"].to_numpy()[ctx.rows][ff.series_idx]
+                scale = np.array([factors.get(str(c), 1.0) for c in cats])
+            point[:, cols] = (pred * scale).reshape(n, len(days))
             for q, v in qmap.apply(pred).items():
                 quant[q][:, cols] = np.where(on_sale, v, 0.0).reshape(n, len(days))
             if self.model_dir is not None:
@@ -145,7 +173,10 @@ class LightGBMForecaster:
                     str(d / f"bucket_{hi}.txt"), num_iteration=booster.best_iteration
                 )
                 np.savez(d / f"bucket_{hi}_qmap.npz", edges=qmap.edges, table=qmap.table)
-                (d / "meta.json").write_text(
-                    json.dumps({"families": list(self.families), "params": self.params}, indent=2)
-                )
+                meta: dict[str, Any] = {"families": list(self.families), "params": self.params}
+                meta_path = d / "meta.json"
+                if meta_path.exists():
+                    meta = json.loads(meta_path.read_text())
+                meta.setdefault("bias_factors", {})[str(hi)] = factors
+                meta_path.write_text(json.dumps(meta, indent=2))
         return Forecast(point=point, quantiles=quant)

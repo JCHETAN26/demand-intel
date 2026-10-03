@@ -86,3 +86,28 @@ def test_lightgbm_forecaster_end_to_end() -> None:
     # beats a flat zero forecast comfortably on Poisson data with a real signal
     assert np.abs(fc.point - truth).mean() < 0.8 * np.abs(truth).mean()
     assert {r["bucket"] for r in model.log} == {7, 14, 28}
+
+
+def test_bias_correction_moves_mean_toward_calibration_window() -> None:
+    m5 = synthetic_m5()
+    fold = BACKTEST_FOLDS[-1]
+    params = {
+        "objective": "tweedie",
+        "learning_rate": 0.1,
+        "num_leaves": 15,
+        "min_data_in_leaf": 20,
+        "verbose": -1,
+        "num_threads": 2,
+    }
+    ctx = FoldContext(fold=fold, data=truncate(m5, fold.origin), rows=np.arange(len(m5.series)))
+    plain = LightGBMForecaster("p", train_days=120, params=params, max_rounds=40).forecast(ctx)
+    model = LightGBMForecaster(
+        "bc", train_days=120, params=params, max_rounds=40, bias_correct=True
+    )
+    corrected = model.forecast(ctx)
+    factors = [f for r in model.log for f in r["bias_factors"].values()]
+    assert factors and all(0.9 <= f <= 1.1 for f in factors)
+    assert corrected.quantiles is not None and plain.quantiles is not None
+    np.testing.assert_allclose(
+        corrected.quantiles[0.5], plain.quantiles[0.5]
+    )  # quantiles untouched

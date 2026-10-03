@@ -41,6 +41,9 @@ def _lgbm() -> dict[str, Callable[[], Forecaster]]:
     model_dir = settings.data_dir / "models" / "lgbm"
     out: dict[str, Callable[[], Forecaster]] = {
         "lgbm": lambda: LightGBMForecaster("lgbm", DEFAULT_FAMILIES, model_dir=model_dir),
+        "lgbm_bc": lambda: LightGBMForecaster(
+            "lgbm_bc", DEFAULT_FAMILIES, model_dir=model_dir, bias_correct=True
+        ),
         "lgbm_weather_oracle": lambda: LightGBMForecaster(
             "lgbm_weather_oracle", (*DEFAULT_FAMILIES, "weather_oracle")
         ),

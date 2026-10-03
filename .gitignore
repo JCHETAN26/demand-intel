@@ -10,15 +10,12 @@ htmlcov/
 dist/
 
 # Data & outputs: raw data is never committed; samples are.
+data/*
+!data/raw/
 data/raw/**
 !data/raw/**/
 !data/raw/**/.gitkeep
-data/validated/
-data/quarantine/
-data/forecasts/
-data/features/
-data/models/
-data/nlp/
+!data/samples/
 artifacts/**
 !artifacts/.gitkeep
 mlruns/
