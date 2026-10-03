@@ -1,0 +1,31 @@
+event_type,event_name,FOODS,HOBBIES,HOUSEHOLD
+Cultural,Cinco De Mayo,1.101,1.059,1.019
+Cultural,Easter,0.917,0.825,0.817
+Cultural,Father's day,0.885,0.947,0.903
+Cultural,Halloween,0.914,0.995,0.908
+Cultural,Mother's day,0.917,0.862,0.799
+Cultural,StPatricksDay,0.956,0.971,0.959
+Cultural,ValentinesDay,1.007,0.897,0.857
+National,Christmas,0.001,0.0,0.0
+National,ColumbusDay,1.132,1.037,1.003
+National,IndependenceDay,1.099,0.846,0.912
+National,LaborDay,1.305,1.131,1.277
+National,MartinLutherKingDay,1.037,1.066,1.139
+National,MemorialDay,0.974,1.02,1.069
+National,NewYear,0.747,0.745,0.949
+National,PresidentsDay,0.973,1.028,1.153
+National,Thanksgiving,0.795,0.442,0.65
+National,VeteransDay,1.17,1.002,1.0
+Religious,Chanukah End,1.015,1.042,1.024
+Religious,Eid al-Fitr,0.981,0.959,0.987
+Religious,EidAlAdha,1.092,0.942,0.965
+Religious,LentStart,1.126,1.02,0.951
+Religious,LentWeek2,0.966,1.077,1.051
+Religious,OrthodoxChristmas,1.0,1.024,0.971
+Religious,OrthodoxEaster,1.039,0.992,1.005
+Religious,Pesach End,0.965,1.038,1.013
+Religious,Purim End,0.966,0.996,1.004
+Religious,Ramadan starts,0.925,0.991,0.977
+Sporting,NBAFinalsEnd,0.947,0.889,1.013
+Sporting,NBAFinalsStart,1.122,1.042,1.093
+Sporting,SuperBowl,1.07,0.896,0.858

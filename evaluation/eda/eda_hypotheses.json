@@ -1,0 +1,32 @@
+[
+  {
+    "id": "H1",
+    "statement": "Price sensitivity differs by category: FOODS demand responds most to price (within-series elasticity -0.51) and HOUSEHOLD least (-0.35).",
+    "test": "Feature ablation step 4 (+price) gives the largest WRMSSE gain in FOODS; SHAP price attributions are largest in FOODS."
+  },
+  {
+    "id": "H2",
+    "statement": "Most series are intermittent: 98% of HOBBIES and 87% of FOODS series are intermittent or lumpy (Syntetos\u2013Boylan).",
+    "test": "Croston/TSB beat ETS on intermittent/lumpy series; a Tweedie or Poisson LightGBM objective beats L2 on them."
+  },
+  {
+    "id": "H3",
+    "statement": "All categories have a strong weekly cycle peaking at the weekend; peak/trough ratio ranges from 1.37 (FOODS) to 1.48 (HOUSEHOLD).",
+    "test": "Seasonal naive (7) beats naive (1) at every horizon; calendar features give a material gain in ablation step 2."
+  },
+  {
+    "id": "H4",
+    "statement": "SNAP days lift FOODS more than HOUSEHOLD in every state (FOODS/HOUSEHOLD SNAP ratio-of-ratios 1.064\u20131.254).",
+    "test": "Ablation step 3 (+SNAP) improves FOODS WRMSSE but not HOUSEHOLD/HOBBIES."
+  },
+  {
+    "id": "H5",
+    "statement": "20,731 series contain 50,900 implausible 14\u201355-day zero runs (2.97% of active series-days), consistent with unobserved stockouts; a further 11.30% of active series-days sit in dormant runs of 56+ days, which are kept as real demand regimes.",
+    "test": "Headline metrics are re-run with these days masked (spec \u00a72.1); model rankings should not change."
+  },
+  {
+    "id": "H6",
+    "statement": "Demand trends upward 2011\u20132015 in every category (CAGR 7.4%\u201317.3%), partly through assortment growth (new items entering)",
+    "test": "Models with level adaptation (ETS, rolling features) beat long-window averages; bias stays near zero on the test window."
+  }
+]

@@ -948,6 +948,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pyyaml" },
     { name = "sqlalchemy" },
+    { name = "tabulate" },
     { name = "typer" },
 ]
 
@@ -1035,6 +1036,7 @@ requires-dist = [
     { name = "shap", marker = "extra == 'ml'", specifier = ">=0.45" },
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "statsforecast", marker = "extra == 'ml'", specifier = ">=1.7" },
+    { name = "tabulate", specifier = ">=0.9" },
     { name = "torch", marker = "extra == 'deep'", specifier = ">=2.3" },
     { name = "transformers", marker = "extra == 'nlp'", specifier = ">=4.44" },
     { name = "typer", specifier = ">=0.12" },

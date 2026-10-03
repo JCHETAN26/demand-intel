@@ -1,0 +1,38 @@
+{
+  "series": 30490,
+  "days": 1941,
+  "profile_end_day": 1773,
+  "zero_share_all_cells": 0.6799776584040612,
+  "zero_share_after_first_sale": 0.5952820334633866,
+  "share_cells_before_first_sale": 0.2092707315799692,
+  "closed_days": [
+    331,
+    697,
+    1062,
+    1427,
+    1792
+  ],
+  "closed_dates": [
+    "2011-12-25",
+    "2012-12-25",
+    "2013-12-25",
+    "2014-12-25",
+    "2015-12-25"
+  ],
+  "sales_on_unpriced_days": 0,
+  "suspicious_zero_runs": 50900,
+  "dormant_zero_runs": 38320,
+  "dormant_day_share": 0.11295696532754142,
+  "suspicious_zero_run_days": 1388596,
+  "suspicious_zero_run_series": 20731,
+  "suspicious_zero_run_day_share": 0.029673251386543614,
+  "suspicious_zero_run_day_share_poisson": 0.0338203598495776,
+  "dormant_day_share_poisson": 0.1121346553204511,
+  "demand_classes": {
+    "intermittent": 22182,
+    "lumpy": 5492,
+    "smooth": 1914,
+    "erratic": 868,
+    "insufficient": 34
+  }
+}

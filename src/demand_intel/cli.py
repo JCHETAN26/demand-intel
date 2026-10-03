@@ -28,6 +28,29 @@ def splits() -> None:
     typer.echo(f"wrote {path}")
 
 
+@app.command()
+def eda(panel_size: int = typer.Option(3000, help="PANEL sample size (spec §5.2).")) -> None:
+    """Data-quality checks, exploratory analysis, hypotheses and the PANEL sample."""
+    from demand_intel import SEED
+    from demand_intel.analysis.eda import render_report, run_eda, write_eda
+    from demand_intel.analysis.profile import sample_panel
+    from demand_intel.data import load_m5
+
+    m5 = load_m5(settings.validated_dir / "m5")
+    result = run_eda(m5)
+    eda_dir = settings.evaluation_dir / "eda"
+    write_eda(result, eda_dir, settings.validated_dir / "m5")
+    report = REPO_ROOT / "docs" / "eda_report.md"
+    report.parent.mkdir(exist_ok=True)
+    report.write_text(render_report(eda_dir))
+
+    panel = sample_panel(result.tables["_profile"], panel_size, SEED)
+    cols = ["id", "item_id", "dept_id", "cat_id", "store_id", "state_id", "demand_class"]
+    panel_path = settings.evaluation_dir / "panel_series.csv"
+    panel[[*cols, "volume_tercile"]].to_csv(panel_path, index=False)
+    typer.echo(f"eda: {eda_dir}, report {report}, panel {len(panel)} series")
+
+
 @ingest_app.command("m5")
 def ingest_m5(
     download: bool = typer.Option(True, help="Fetch from Kaggle if raw files are missing."),

@@ -1,6 +1,6 @@
 # Demand Intelligence — Project Specification & Experimental Contract
 
-Status: **v0.1 — frozen before any modeling.**
+Status: **v0.2** (v0.1 frozen before any modeling; see the Change Log).
 Any change to a definition, metric, split, or gate after modeling begins must be
 recorded in the [Change Log](#12-change-log) with the reason and date. Results
 produced under an older spec version must say which version they used.
@@ -62,8 +62,10 @@ Raw files are immutable. They live in `data/raw/<dataset>/` (later
   it appears.
 - **Sales ≠ demand.** M5 records units sold. Stockouts are unobserved and show up
   as zeros. Every result treats sales as a demand proxy. Phase 7 flags
-  *suspicious zero runs*: runs of zeros of length ≥ 14 days for an item whose
-  trailing-90-day selling rate makes such a run unlikely (Poisson p < 0.001).
+  *suspicious zero runs*: runs of zeros of length ≥ 14 days that are unlikely
+  given the item's trailing-90-day share of zero days, p0^L < 0.001 (v0.2).
+  Only runs of 14–55 days count as suspected stockouts. Runs of 56+ days are
+  *dormant periods* and are reported separately, not masked.
   The forecasting and inventory headlines are re-run with those days masked as
   a sensitivity check.
 - **Store locations are given only at state level.** External covariates can
@@ -536,3 +538,4 @@ RAM. This hardware sets three constraints:
 | Version | Date | Change | Reason |
 |---------|------|--------|--------|
 | 0.1 | 2026-10-02 | Initial contract | — |
+| 0.2 | 2026-10-03 | §2.1 suspicious zero runs use the trailing share of zero days, P = p0^L < 0.001, not Poisson. Only 14–55-day runs are suspected stockouts; 56+-day runs are reported as dormant periods | On M5 the v0.1 rule flagged 14.6% of active series-days, 65% of them in runs of 90+ days. Those are regime changes, not replenishment stockouts. Both tests' shares are reported in `evaluation/eda/eda_overview.json` |
