@@ -29,6 +29,23 @@ services:
     volumes:
       - mlartifacts:/mlartifacts
 
+  airflow:
+    profiles: ["airflow"]
+    build:
+      context: .
+      dockerfile: orchestration/airflow/Dockerfile
+    command: standalone
+    environment:
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/demand-intel/orchestration/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      DI_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-demand_intel}:${POSTGRES_PASSWORD:-demand_intel}@postgres:5432/${POSTGRES_DB:-demand_intel}
+      DI_MLFLOW_TRACKING_URI: http://mlflow:5000
+    ports: ["8080:8080"]
+    volumes:
+      - ./data:/opt/demand-intel/data
+      - ./evaluation:/opt/demand-intel/evaluation
+    depends_on: [postgres, mlflow]
+
 volumes:
   pgdata:
   mlartifacts:
