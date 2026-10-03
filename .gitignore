@@ -15,6 +15,10 @@ data/raw/**
 !data/raw/**/.gitkeep
 data/validated/
 data/quarantine/
+data/forecasts/
+data/features/
+data/models/
+data/nlp/
 artifacts/**
 !artifacts/.gitkeep
 mlruns/

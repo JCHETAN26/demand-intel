@@ -1,12 +1,19 @@
 """Command-line entry point: `uv run demand-intel --help`."""
 
+from __future__ import annotations
+
 import json
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
 from demand_intel import SPEC_VERSION, __version__
 from demand_intel.config import REPO_ROOT, settings
 from demand_intel.forecasting.backtesting.splits import split_manifest
+
+if TYPE_CHECKING:
+    import numpy as np
+    import pandas as pd
 
 app = typer.Typer(no_args_is_help=True, help="Demand Intelligence pipelines and evaluation.")
 ingest_app = typer.Typer(no_args_is_help=True, help="Download, validate and store source data.")
@@ -49,6 +56,62 @@ def eda(panel_size: int = typer.Option(3000, help="PANEL sample size (spec §5.2
     panel_path = settings.evaluation_dir / "panel_series.csv"
     panel[[*cols, "volume_tercile"]].to_csv(panel_path, index=False)
     typer.echo(f"eda: {eda_dir}, report {report}, panel {len(panel)} series")
+
+
+def _population_rows(population: str, series: pd.DataFrame) -> np.ndarray:
+    import numpy as np
+    import pandas as pd
+
+    if population == "full":
+        return np.arange(len(series))
+    panel_ids = pd.read_csv(settings.evaluation_dir / "panel_series.csv")["id"]
+    pos = pd.Series(np.arange(len(series)), index=series["id"])
+    return np.sort(pos.loc[panel_ids].to_numpy())
+
+
+@app.command()
+def backtest(
+    models: Annotated[list[str], typer.Argument(help="Model names (see models/registry.py).")],
+    population: str = typer.Option("full", help="full | panel (spec §5.2)."),
+    folds: str = typer.Option("all", help="backtest | test | all."),
+) -> None:
+    """Rolling-origin backtest of one or more models; writes evaluation/backtest/."""
+    import pandas as pd
+
+    from demand_intel.data import load_m5
+    from demand_intel.forecasting.backtesting.harness import (
+        SLICES,
+        TruthCache,
+        folds_for,
+        run_backtest,
+    )
+    from demand_intel.models.registry import make
+
+    m5 = load_m5(settings.validated_dir / "m5")
+    profile = pd.read_parquet(settings.validated_dir / "m5" / "series_profile.parquet")
+    runs = pd.read_parquet(settings.validated_dir / "m5" / "suspicious_zero_runs.parquet")
+    rows = _population_rows(population, m5.series)
+    attrs = profile.iloc[rows][list(SLICES)]
+    cache = TruthCache(m5)
+    for name in models:
+        res = run_backtest(
+            make(name),
+            m5,
+            rows,
+            population,  # type: ignore[arg-type]
+            folds_for(folds),  # type: ignore[arg-type]
+            attrs,
+            settings.evaluation_dir / "backtest",
+            settings.data_dir / "forecasts",
+            stockout_runs=runs,
+            truth_cache=cache,
+        )
+        head = res[(res["slice"] == "all") & (res["window"] == 28)]
+        for r in head.itertuples():
+            typer.echo(
+                f"{name:22} {population:5} {r.fold:7} WRMSSE {r.wrmsse:.4f}  WAPE {r.wape:.4f}  "
+                f"bias {r.bias:+.4f}  {r.seconds:.1f}s"
+            )
 
 
 @ingest_app.command("m5")
