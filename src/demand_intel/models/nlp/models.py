@@ -286,20 +286,24 @@ class EncoderModel:
         return np.concatenate(pe), np.concatenate(ps)
 
     def save(self, path: Path) -> None:
+        """Self-contained: encoder weights + tokenizer + heads, no download needed to load."""
         import torch
 
         path.mkdir(parents=True, exist_ok=True)
-        torch.save(self.model.state_dict(), path / "model.pt")
-        self.tokenizer.save_pretrained(path)
-        (path / "config.txt").write_text(f"{self.base}\n{self.max_length}\n")
+        self.model.encoder.save_pretrained(path / "encoder")
+        self.tokenizer.save_pretrained(path / "encoder")
+        heads = {k: v for k, v in self.model.state_dict().items() if not k.startswith("encoder.")}
+        torch.save(heads, path / "heads.pt")
+        (path / "config.txt").write_text(f"{self.max_length}\n")
 
     @classmethod
     def load(cls, path: Path) -> "EncoderModel":
         import torch
 
-        base, max_len = (path / "config.txt").read_text().split()
-        m = cls(base=base, max_length=int(max_len))
+        m = cls(
+            base=str(path / "encoder"), max_length=int((path / "config.txt").read_text().split()[0])
+        )
         m._build()
-        m.model.load_state_dict(torch.load(path / "model.pt", map_location="cpu"))
+        m.model.load_state_dict(torch.load(path / "heads.pt", map_location="cpu"), strict=False)
         m.model.eval()
         return m

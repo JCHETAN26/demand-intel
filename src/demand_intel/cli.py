@@ -545,6 +545,61 @@ def nlp_signals(
     typer.echo(f"text signals ({event_source}) for {len(docs)} reports → {out}")
 
 
+@app.command("nlp-benchmark")
+def nlp_benchmark(
+    threads: int = typer.Option(1, help="CPU threads per model (1 = one vCPU)."),
+) -> None:
+    """Accuracy × latency × throughput × size × cost for the NLP models (spec §7.4)."""
+    import pickle
+
+    from sklearn.metrics import f1_score
+
+    from demand_intel.models.nlp.benchmark import Candidate, encoder_variants, measure
+    from demand_intel.models.nlp.labeling import EVENT_TYPES
+    from demand_intel.models.nlp.models import SEVERITIES, EmbeddingModel, TfidfModel
+
+    nlp_dir = settings.data_dir / "nlp"
+    docs = pd.read_parquet(nlp_dir / "dataset.parquet")
+    tr, te = docs[docs["split"] == "train"], docs[docs["split"] == "test"]
+    gold_path = nlp_dir / "gold_labels.parquet"
+    gold = pd.read_parquet(gold_path).set_index("doc_id")["label"] if gold_path.exists() else None
+    texts = te["text"].tolist()
+    cands = []
+    tf = TfidfModel()
+    tf.fit(tr["text"].tolist(), tr["weak_label"].tolist(), tr["severity"].tolist())
+    cands.append(Candidate("n1_tfidf_logreg", tf.predict_proba, len(pickle.dumps(tf)) / 1e6))
+    emb = EmbeddingModel()
+    emb.fit(tr["text"].tolist(), tr["weak_label"].tolist(), tr["severity"].tolist())
+    cands.append(Candidate("n2_embeddings_logreg", emb.predict_proba, 90.9))  # MiniLM-L6 weights
+    notes: list[str] = []
+    enc_dir = settings.data_dir / "models" / "nlp" / "n3_encoder"
+    if (enc_dir / "heads.pt").exists():
+        variants, notes = encoder_variants(enc_dir, threads)
+        cands += variants
+    rows = []
+    for c in cands:
+        stats = measure(c, texts)
+        pe, ps = c.predict(texts)
+        sev = [SEVERITIES.index(s) for s in te["severity"]]
+        stats["severity_macro_f1"] = float(f1_score(sev, ps.argmax(1), average="macro"))
+        truth, src = (
+            (te["doc_id"].map(gold), "gold") if gold is not None else (te["weak_label"], "weak")
+        )
+        has = truth.notna().to_numpy()
+        y = [EVENT_TYPES.index(t) for t in truth[has]]
+        stats["event_macro_f1"] = float(f1_score(y, pe[has].argmax(1), average="macro"))
+        stats["event_truth"] = src
+        stats["threads"] = threads
+        rows.append(stats)
+        typer.echo(
+            f"{c.name}: p50 {stats['p50_ms']:.1f} ms, {stats['throughput_docs_per_s']:.0f} docs/s"
+        )
+    out = pd.DataFrame(rows)
+    out.to_csv(settings.evaluation_dir / "nlp_inference_benchmark.csv", index=False)
+    for n in notes:
+        typer.echo(n)
+
+
 @ingest_app.command("m5")
 def ingest_m5(
     download: bool = typer.Option(True, help="Fetch from Kaggle if raw files are missing."),
