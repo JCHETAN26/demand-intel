@@ -1,6 +1,6 @@
 # Demand Intelligence — Project Specification & Experimental Contract
 
-Status: **v0.3** (v0.1 frozen before any modeling; see the Change Log).
+Status: **v0.4** (v0.1 frozen before any modeling; see the Change Log).
 Any change to a definition, metric, split, or gate after modeling begins must be
 recorded in the [Change Log](#12-change-log) with the reason and date. Results
 produced under an older spec version must say which version they used.
@@ -541,5 +541,6 @@ RAM. This hardware sets three constraints:
 | Version | Date | Change | Reason |
 |---------|------|--------|--------|
 | 0.1 | 2026-10-02 | Initial contract | — |
+| 0.4 | 2026-10-03 | Scope and mapping decisions made while modelling: (a) LSTM/TFT run on PANEL only, on CPU, at 10 epochs × 40k windows; (b) every model trains only on the series of the population it is evaluated on; (c) multimodal arm D = LightGBM with sales, calendar, SNAP, price, hierarchy and past weather, and E/F add only the text family to D; (d) text signals apply to FOODS series in states the recall names or nationwide; (e) N4 (generative LoRA) needs a GPU and is reported as not run otherwise; (f) human gold labels are imported from the review tool, and items marked unsure are kept and reported | (a) Codespaces has 4 CPU cores and no GPU; (b) like-for-like comparisons; (c) hierarchy ids are part of the champion, so the text comparison isolates the text family; (d) the only defensible mapping for anonymized items (§2.4); (e) §11.1 compute; (f) transparency |
 | 0.3 | 2026-10-03 | §5.5 quantile acceptance uses the discrete calibration bracket P(y<q) ≤ τ ≤ P(y≤q); WSPL is computed at the bottom level | The v0.1 band on P(y≤q) cannot be met by a correct forecast of count data with many zeros. Quantiles are produced only for bottom-level series |
 | 0.2 | 2026-10-03 | §2.1 suspicious zero runs use the trailing share of zero days, P = p0^L < 0.001, not Poisson. Only 14–55-day runs are suspected stockouts; 56+-day runs are reported as dormant periods | On M5 the v0.1 rule flagged 14.6% of active series-days, 65% of them in runs of 90+ days. Those are regime changes, not replenishment stockouts. Both tests' shares are reported in `evaluation/eda/eda_overview.json` |

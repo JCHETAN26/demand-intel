@@ -600,6 +600,41 @@ def nlp_benchmark(
         typer.echo(n)
 
 
+@app.command("nlp-import-gold")
+def nlp_import_gold(
+    export_dir: Annotated[
+        Path, typer.Option(help="Folder of exported label documents (one JSON per recall).")
+    ],
+) -> None:
+    """Import human-validated labels from the review tool into data/nlp/gold_labels.parquet."""
+    from demand_intel.models.nlp.labeling import EVENT_TYPES
+
+    rows = []
+    for f in sorted(export_dir.rglob("*.json")):
+        doc = json.loads(f.read_text())
+        body = doc.get("data", doc)
+        if body.get("label") not in EVENT_TYPES:
+            continue
+        rows.append(
+            {
+                "doc_id": f.stem,
+                "label": body["label"],
+                "weak_label": body.get("weak_label"),
+                "unsure": bool(body.get("unsure", False)),
+                "note": body.get("note", ""),
+                "labeled_at": body.get("labeled_at"),
+            }
+        )
+    gold = pd.DataFrame(rows)
+    out = settings.data_dir / "nlp" / "gold_labels.parquet"
+    gold.to_parquet(out, index=False)
+    agree = float((gold["label"] == gold["weak_label"]).mean()) if len(gold) else float("nan")
+    typer.echo(
+        f"{len(gold)} gold labels ({int(gold['unsure'].sum()) if len(gold) else 0} unsure); "
+        f"rule labels agree with humans on {agree:.1%}"
+    )
+
+
 @app.command()
 def acceptance() -> None:
     """Answer the ten acceptance questions from the evaluation artifacts (plan Phase 37)."""
