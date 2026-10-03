@@ -89,3 +89,34 @@ def test_registry_records_decisions(tmp_path: Path) -> None:
 def test_tracking_falls_back_to_sqlite(tmp_path: Path) -> None:
     uri = tracking_uri("http://localhost:1", tmp_path)
     assert uri.startswith("sqlite:///")
+
+
+def test_monitoring_thresholds() -> None:
+    from demand_intel.mlops.monitoring.monitor import (
+        forecast_checks,
+        js_divergence,
+        nlp_checks,
+        psi,
+    )
+
+    rng = np.random.default_rng(0)
+    a = rng.normal(0, 1, 5000)
+    assert psi(a, rng.normal(0, 1, 5000)) < 0.05
+    assert psi(a, rng.normal(1.5, 1, 5000)) > 0.25
+    assert js_divergence({"A": 0.5, "B": 0.5}, {"A": 0.5, "B": 0.5}) == 0.0
+    rep = nlp_checks({"A": 0.9, "B": 0.1}, ["B"] * 90 + ["A"] * 10, 0)
+    assert rep.status == "alert"
+    y = rng.poisson(3, size=(40, 28)).astype(float)
+    groups = pd.DataFrame({"cat_id": ["FOODS"] * 20 + ["HOBBIES"] * 20, "store_id": "CA_1"})
+    base = pd.DataFrame(
+        {
+            "slice": ["cat_id", "cat_id", "store_id"],
+            "value": ["FOODS", "HOBBIES", "CA_1"],
+            "wape": [0.4, 0.4, 0.4],
+        }
+    )
+    rep_ok, _ = forecast_checks(y, y * 0 + 3.0, y * 0 + 10.0, groups, base)
+    rep_bad, _ = forecast_checks(y, y * 0 + 9.0, y * 0 + 1.0, groups, base)
+    assert rep_bad.status == "alert"
+    flagged = lambda r: sum(c.status != "ok" for c in r.checks)  # noqa: E731
+    assert flagged(rep_bad) > flagged(rep_ok)

@@ -179,6 +179,77 @@ def promote(
 
 
 @app.command()
+def monitor(
+    model: str = typer.Option("", help="Forecast model to monitor (default: registry champion)."),
+) -> None:
+    """Forecast, data-drift and NLP monitoring on the latest scored window (spec §11.4)."""
+    import numpy as np
+
+    from demand_intel.data import load_m5
+    from demand_intel.forecasting.backtesting.harness import truncate
+    from demand_intel.forecasting.backtesting.splits import BACKTEST_FOLDS, HORIZON, TEST_FOLD
+    from demand_intel.mlops.monitoring.monitor import (
+        MonitorReport,
+        feature_drift,
+        forecast_checks,
+        nlp_checks,
+    )
+    from demand_intel.mlops.registry.registry import load_registry
+    from demand_intel.models.nlp.labeling import weak_label
+    from demand_intel.pipelines.features.build import DEFAULT_FAMILIES, build_features
+
+    out = settings.evaluation_dir
+    name = model or load_registry(out / "registry.json")["tasks"]["forecast"]["champion"]
+    m5 = load_m5(settings.validated_dir / "m5")
+    z = np.load(settings.data_dir / "forecasts" / name / "full" / "test.npz")
+    rows = z["rows"]
+    o = TEST_FOLD.origin
+    y = m5.sales[rows, o : o + HORIZON].astype(float)
+    q90 = z["q90"] if "q90" in z.files else None
+    results = pd.read_csv(out / "backtest" / f"{name}__full.csv")
+    folds = [f.name for f in BACKTEST_FOLDS]
+    baseline = (
+        results[(results["window"] == 28) & results["fold"].isin(folds)]
+        .groupby(["slice", "value"])["wape"]
+        .mean()
+        .reset_index()
+    )
+    fc_rep, slices = forecast_checks(y, z["point"], q90, m5.series.iloc[rows], baseline)
+
+    panel = _population_rows("panel", m5.series)
+    data = truncate(m5, o)
+    ref = build_features(data, panel, np.arange(o - 364 + 1, o + 1), 7, DEFAULT_FAMILIES).X
+    cur = build_features(data, panel, np.arange(o + 1, o + 8), 7, DEFAULT_FAMILIES).X
+    drift = feature_drift(ref, cur)
+    data_rep = MonitorReport()
+    from demand_intel.mlops.monitoring.monitor import Check
+
+    for r in drift.itertuples():
+        data_rep.checks.append(Check(f"psi:{r.feature}", float(r.psi), r.status))  # type: ignore[arg-type]
+
+    nlp_summary = json.loads((out / "nlp_dataset.json").read_text())
+    train_mix = nlp_summary["weak_label_distribution"]["train"]
+    docs = pd.read_parquet(settings.data_dir / "nlp" / "dataset.parquet")
+    batch = docs[docs["split"] == "test"]["reason_for_recall"].map(lambda t: weak_label(t).label)
+    nlp_rep = nlp_checks({k: float(v) for k, v in train_mix.items()}, batch.tolist(), 0)
+
+    report = {
+        "model": name,
+        "window": TEST_FOLD.name,
+        "forecast": fc_rep.to_dict(),
+        "data": data_rep.to_dict(),
+        "nlp": nlp_rep.to_dict(),
+    }
+    (out / "monitoring_report.json").write_text(json.dumps(report, indent=2, default=float))
+    slices.to_csv(out / "monitoring_forecast_slices.csv", index=False)
+    drift.to_csv(out / "monitoring_feature_drift.csv", index=False)
+    for part in ("forecast", "data", "nlp"):
+        rep = report[part]
+        flagged = [c["name"] for c in rep["checks"] if c["status"] != "ok"]  # type: ignore[index]
+        typer.echo(f"{part}: {rep['status']} ({len(flagged)} flagged) {flagged[:6]}")  # type: ignore[index]
+
+
+@app.command()
 def report() -> None:
     """Assemble the forecasting artifacts and planned paired tests (spec §10)."""
     from demand_intel.forecasting.evaluation.report import build_forecast_artifacts

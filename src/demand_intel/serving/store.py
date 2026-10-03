@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from demand_intel.forecasting.backtesting.splits import HORIZON
-from demand_intel.pipelines.inference.serving import QCOLS
+from demand_intel.forecasting.evaluation.metrics import QCOLS
 
 
 @dataclass

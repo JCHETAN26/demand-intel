@@ -29,7 +29,7 @@ import pandas as pd
 from demand_intel.data import M5Data
 from demand_intel.forecasting.backtesting.harness import FoldContext
 from demand_intel.forecasting.backtesting.splits import HORIZON, Fold, day_to_date
-from demand_intel.forecasting.evaluation.metrics import QUANTILES
+from demand_intel.forecasting.evaluation.metrics import QCOLS, QUANTILES
 from demand_intel.inventory.policies.policies import lead_time_quantile
 from demand_intel.models.lgbm.explain import contributions
 from demand_intel.models.lgbm.model import LightGBMForecaster
@@ -39,7 +39,6 @@ HISTORY_DAYS = 182
 SCENARIO_COVER_DAYS = 7
 RISK_LEAD_TIME = 7
 DEFAULT_RHO = 0.3
-QCOLS = [f"q{round(q * 100):02d}" for q in QUANTILES]
 
 
 @dataclass(frozen=True)

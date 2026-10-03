@@ -23,6 +23,7 @@ from demand_intel.data import first_sale_index
 from demand_intel.forecasting.evaluation.hierarchy import Hierarchy
 
 QUANTILES = (0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95)
+QCOLS = [f"q{round(q * 100):02d}" for q in QUANTILES]  # column names in files
 WINDOWS = (7, 14, 28)
 
 

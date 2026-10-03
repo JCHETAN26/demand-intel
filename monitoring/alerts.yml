@@ -1,0 +1,25 @@
+# System alerts (PROJECT_SPEC.md §11.3-11.4). Model and data alerts come from
+# `demand-intel monitor` (evaluation/monitoring_report.json) and the weekly DAG.
+groups:
+  - name: demand-intel-api
+    rules:
+      - alert: ForecastLatencyP95High
+        expr: histogram_quantile(0.95, sum(rate(di_request_seconds_bucket{route="/v1/forecast"}[5m])) by (le)) > 0.1
+        for: 10m
+        labels: {severity: warn}
+        annotations: {summary: "p95 /v1/forecast latency above the 100 ms SLO"}
+      - alert: ForecastLatencyP95Critical
+        expr: histogram_quantile(0.95, sum(rate(di_request_seconds_bucket{route="/v1/forecast"}[5m])) by (le)) > 0.2
+        for: 10m
+        labels: {severity: alert}
+        annotations: {summary: "p95 /v1/forecast latency above 2x SLO"}
+      - alert: ServerErrorRate
+        expr: sum(rate(di_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(di_requests_total[5m])), 1e-9) > 0.001
+        for: 10m
+        labels: {severity: warn}
+        annotations: {summary: "5xx rate above 0.1%"}
+      - alert: ApiDown
+        expr: up{job="demand-intel-api"} == 0
+        for: 2m
+        labels: {severity: alert}
+        annotations: {summary: "API not reachable"}
