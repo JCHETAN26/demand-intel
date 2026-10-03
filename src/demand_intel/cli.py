@@ -136,6 +136,49 @@ def forecast_batch() -> None:
 
 
 @app.command()
+def promote(
+    challenger: str = typer.Option(..., help="Forecast model proposed as champion."),
+    population: str = typer.Option("full"),
+) -> None:
+    """Evaluate the §11.2 gates against the current champion; register if all pass."""
+    from demand_intel.forecasting.evaluation.compare import load_results, summary_table
+    from demand_intel.mlops.registry.gates import evaluate_gates
+    from demand_intel.mlops.registry.registry import (
+        load_registry,
+        log_model_runs,
+        record_decision,
+        register_forecaster,
+        tracking_uri,
+    )
+
+    reg_path = settings.evaluation_dir / "registry.json"
+    champion = load_registry(reg_path)["tasks"]["forecast"]["champion"]
+    results = load_results(settings.evaluation_dir / "backtest")
+    report = evaluate_gates(
+        results,
+        settings.data_dir / "forecasts",
+        challenger,
+        champion,
+        population,
+        settings.validated_dir / "m5" / "_ingestion.json",
+    )
+    for g in report.gates:
+        typer.echo(f"{'PASS' if g.passed else 'FAIL'} {g.name}: {g.detail}")
+    uri = tracking_uri(settings.mlflow_tracking_uri, settings.data_dir / "mlflow")
+    summary = summary_table(results)
+    log_model_runs(uri, summary, settings.evaluation_dir / "backtest")
+    version = None
+    model_dir = settings.data_dir / "models" / "lgbm" / challenger / population / "test"
+    if report.promote and model_dir.exists():
+        row = summary[(summary["model"] == challenger) & (summary["population"] == population)]
+        metrics = {k: float(row[k].iloc[0]) for k in ("test_wrmsse", "backtest_wrmsse") if k in row}
+        version = register_forecaster(uri, "demand-forecaster", model_dir, metrics, "champion")
+    record_decision(reg_path, "forecast", report, version)
+    verdict = "PROMOTED" if report.promote else "NOT promoted"
+    typer.echo(f"{challenger}: {verdict} (champion was {champion}); tracking {uri}")
+
+
+@app.command()
 def report() -> None:
     """Assemble the forecasting artifacts and planned paired tests (spec §10)."""
     from demand_intel.forecasting.evaluation.report import build_forecast_artifacts
