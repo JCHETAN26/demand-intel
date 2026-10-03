@@ -11,7 +11,7 @@ from demand_intel.pipelines.validation.contracts import (
     sales_id_contract,
     validate,
 )
-from tests.unit.conftest import EXPECT, M5Dirs, calendar, prices, sales
+from tests.conftest import EXPECT, M5Dirs, calendar, prices, sales
 
 
 def run(d: M5Dirs, force: bool = False):  # type: ignore[no-untyped-def]

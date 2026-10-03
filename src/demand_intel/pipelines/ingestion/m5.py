@@ -98,7 +98,9 @@ class IngestionReport:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any], status: Literal["loaded", "skipped"]) -> "IngestionReport":
+    def from_dict(
+        cls, d: dict[str, Any], status: Literal["loaded", "skipped"]
+    ) -> "IngestionReport":
         return cls(
             dataset=d["dataset"],
             status=status,
@@ -143,7 +145,10 @@ def _reject_rate_check(name: str, rejected: int, total: int) -> Check:
     limit = MAX_REJECT_RATE[name]
     rate = rejected / total if total else 0.0
     return Check(
-        f"{name}:reject_rate", rate <= limit, "error", f"{rejected}/{total} rejected, limit {limit:.2%}"
+        f"{name}:reject_rate",
+        rate <= limit,
+        "error",
+        f"{rejected}/{total} rejected, limit {limit:.2%}",
     )
 
 
@@ -189,7 +194,7 @@ def _ingest_calendar(
 @dataclass
 class _Sales:
     ids: pd.DataFrame  # valid identifier rows
-    values: np.ndarray  # valid rows x days, int32
+    matrix: np.ndarray  # valid rows x days, int32
     rejected: pd.DataFrame
     total: int
 
@@ -210,11 +215,8 @@ def _read_sales(path: Path, expected_days: int, name: str, checks: list[Check]) 
     flags = check_sales_matrix(raw[day_cols])
     bad = flags.any(axis=1)
     bad.loc[ids.rejected.index] = True
-    id_reasons = ids.rejected["_reasons"]
-    reasons = [
-        [*(id_reasons.at[i] if i in id_reasons.index else []), *flags.columns[flags.loc[i]]]
-        for i in bad[bad].index
-    ]
+    id_reasons = dict(zip(ids.rejected.index, ids.rejected["_reasons"], strict=True))
+    reasons = [[*id_reasons.get(i, []), *flags.columns[flags.loc[i]]] for i in bad[bad].index]
     rejected = raw.loc[bad, list(SALES_ID_COLUMNS)].copy()
     rejected["_reasons"] = reasons
 
@@ -224,7 +226,7 @@ def _read_sales(path: Path, expected_days: int, name: str, checks: list[Check]) 
         raise OverflowError(f"{name}: sales value exceeds int32")
     return _Sales(
         ids=ids.valid.loc[good[good].index].reset_index(drop=True),
-        values=values.astype(np.int32),
+        matrix=values.astype(np.int32),
         rejected=rejected,
         total=len(raw),
     )
@@ -254,7 +256,7 @@ def _long_sales(series: pd.DataFrame, values: np.ndarray) -> pd.DataFrame:
 def _matches_prefix(evaluation: _Sales, validation: _Sales, days: int) -> bool:
     def keyed(s: _Sales, n: int) -> pd.DataFrame:
         key = s.ids["item_id"].astype(str) + "_" + s.ids["store_id"].astype(str)
-        return pd.DataFrame(s.values[:, :n], index=key).sort_index()
+        return pd.DataFrame(s.matrix[:, :n], index=key).sort_index()
 
     ev, va = keyed(evaluation, days), keyed(validation, days)
     return ev.index.equals(va.index) and np.array_equal(ev.to_numpy(), va.to_numpy())
@@ -343,7 +345,12 @@ def ingest_m5(
         )
     )
     prices = prices.astype(
-        {"store_id": "category", "item_id": "category", "wm_yr_wk": "int32", "sell_price": "float64"}
+        {
+            "store_id": "category",
+            "item_id": "category",
+            "wm_yr_wk": "int32",
+            "sell_price": "float64",
+        }
     )
 
     rejected_frames = {
@@ -363,7 +370,7 @@ def ingest_m5(
 
     _write_parquet(calendar, out_dir / "calendar.parquet")
     _write_parquet(series, out_dir / "series.parquet")
-    _write_parquet(_long_sales(series, evaluation.values), out_dir / "sales.parquet")
+    _write_parquet(_long_sales(series, evaluation.matrix), out_dir / "sales.parquet")
     _write_parquet(prices, out_dir / "sell_prices.parquet")
 
     counts = {

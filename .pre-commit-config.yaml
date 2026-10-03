@@ -7,14 +7,19 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
         args: ["--maxkb=1024"]
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
-    hooks:
-      - id: ruff
-        args: ["--fix"]
-      - id: ruff-format
+  # Ruff and mypy run from the project environment so hooks, CI and editors use one version.
   - repo: local
     hooks:
+      - id: ruff
+        name: ruff
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format
+        language: system
+        types: [python]
       - id: mypy
         name: mypy
         entry: uv run mypy

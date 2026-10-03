@@ -103,6 +103,10 @@ def _binary(name: str) -> pa.Column:
     return pa.Column(pd.Int64Dtype(), pa.Check.isin([0, 1]), nullable=False, name=name)
 
 
+def _name_iff_type(i: int) -> RowCheck:
+    return lambda d: d[f"event_name_{i}"].isna() == d[f"event_type_{i}"].isna()
+
+
 def calendar_contract() -> Contract:
     def day_number(d: pd.DataFrame) -> pd.Series:
         return pd.to_numeric(d["d"].str.removeprefix("d_"), errors="coerce")
@@ -140,7 +144,9 @@ def calendar_contract() -> Contract:
                 **{f"snap_{s}": _binary(f"snap_{s}") for s in STATES},
             },
             checks=[
-                _row_check("weekday_matches_date", lambda d: d["weekday"] == d["date"].dt.day_name()),
+                _row_check(
+                    "weekday_matches_date", lambda d: d["weekday"] == d["date"].dt.day_name()
+                ),
                 # M5 weeks start on Saturday: wday 1 = Saturday ... 7 = Friday.
                 _row_check(
                     "wday_matches_date", lambda d: d["wday"] == (d["date"].dt.dayofweek + 2) % 7 + 1
@@ -153,13 +159,7 @@ def calendar_contract() -> Contract:
                         day_number(d) == (d["date"] - pd.Timestamp(M5_START)).dt.days + 1
                     ).fillna(False),
                 ),
-                *(
-                    _row_check(
-                        f"event_{i}_name_iff_type",
-                        lambda d, i=i: d[f"event_name_{i}"].isna() == d[f"event_type_{i}"].isna(),
-                    )
-                    for i in (1, 2)
-                ),
+                *(_row_check(f"event_{i}_name_iff_type", _name_iff_type(i)) for i in (1, 2)),
                 _row_check(
                     "event_2_requires_event_1",
                     lambda d: d["event_name_1"].notna() | d["event_name_2"].isna(),
@@ -183,9 +183,11 @@ def sales_id_contract() -> Contract:
         schema=pa.DataFrameSchema(
             {
                 "id": pa.Column(
-                    object, pa.Check.str_matches(r"_(validation|evaluation)$"), nullable=False
+                    object, pa.Check.str_matches(r".+_(validation|evaluation)$"), nullable=False
                 ),
-                "item_id": pa.Column(object, pa.Check.str_matches(r"^[A-Z]+_\d+_\d+$"), nullable=False),
+                "item_id": pa.Column(
+                    object, pa.Check.str_matches(r"^[A-Z]+_\d+_\d+$"), nullable=False
+                ),
                 "dept_id": pa.Column(object, pa.Check.str_matches(r"^[A-Z]+_\d+$"), nullable=False),
                 "cat_id": pa.Column(object, pa.Check.isin(CATEGORIES), nullable=False),
                 "store_id": pa.Column(object, pa.Check.isin(STORES), nullable=False),
@@ -218,8 +220,10 @@ def check_sales_matrix(values: pd.DataFrame) -> pd.DataFrame:
     present = values.notna().to_numpy()
     if text_cols:
         num = values.apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float)
-        pos = [values.columns.get_loc(c) for c in text_cols]
-        present[:, pos] &= (values[text_cols].astype(str).apply(lambda s: s.str.strip()) != "").to_numpy()
+        pos = values.columns.get_indexer(pd.Index(text_cols))
+        present[:, pos] &= (
+            values[text_cols].astype(str).apply(lambda s: s.str.strip()) != ""
+        ).to_numpy()
     else:
         num = values.to_numpy(dtype=float)
     return pd.DataFrame(
