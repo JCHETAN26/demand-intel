@@ -600,6 +600,19 @@ def nlp_benchmark(
         typer.echo(n)
 
 
+@app.command()
+def acceptance() -> None:
+    """Answer the ten acceptance questions from the evaluation artifacts (plan Phase 37)."""
+    from demand_intel.acceptance import answer_all, render
+
+    answers = answer_all(settings.evaluation_dir)
+    (settings.evaluation_dir / "acceptance.json").write_text(json.dumps(answers, indent=2))
+    doc = REPO_ROOT / "docs" / "acceptance.md"
+    doc.write_text(render(answers))
+    for a in answers:
+        typer.echo(f"[{a['verdict']:7}] {a['question']}")
+
+
 @ingest_app.command("m5")
 def ingest_m5(
     download: bool = typer.Option(True, help="Fetch from Kaggle if raw files are missing."),
