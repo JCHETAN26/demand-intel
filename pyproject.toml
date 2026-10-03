@@ -44,7 +44,7 @@ nlp = [
     "optimum[onnxruntime]>=1.21",
     "datasketch>=1.6",
 ]
-api = ["fastapi>=0.111", "uvicorn[standard]>=0.30", "prometheus-client>=0.20", "httpx>=0.27"]
+api = ["fastapi>=0.111", "uvicorn[standard]>=0.30", "prometheus-client>=0.20", "httpx>=0.27", "boto3>=1.34"]
 monitoring = ["evidently>=0.4"]
 versioning = ["dvc[s3]>=3.50"]
 # Airflow pins most of its dependency tree, so it runs from its own image
@@ -105,7 +105,7 @@ plugins = ["pydantic.mypy"]
 module = [
     "lightgbm.*", "statsforecast.*", "shap.*", "mlflow.*", "optuna.*",
     "pytorch_forecasting.*", "peft.*", "datasketch.*", "evidently.*", "pandera.*", "tabulate.*", "scipy.*", "sklearn.*", "transformers.*",
-    "sentence_transformers.*",
+    "sentence_transformers.*", "boto3.*",
 ]
 ignore_missing_imports = true
 

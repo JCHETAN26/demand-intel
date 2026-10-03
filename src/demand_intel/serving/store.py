@@ -72,3 +72,19 @@ class ServingStore:
 
     def date(self, d: int) -> str:
         return self.calendar.get(int(d), str(d))
+
+
+def sync_from_s3(uri: str, dest: Path) -> int:
+    """Download a serving bundle from s3://bucket/prefix/ into `dest` (used on ECS)."""
+    import boto3
+
+    bucket, _, prefix = uri.removeprefix("s3://").partition("/")
+    client = boto3.client("s3")
+    n = 0
+    for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            target = dest / obj["Key"][len(prefix) :].lstrip("/")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            client.download_file(bucket, obj["Key"], str(target))
+            n += 1
+    return n

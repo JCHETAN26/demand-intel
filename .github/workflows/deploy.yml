@@ -1,0 +1,35 @@
+name: deploy
+
+# Manual: builds both images, pushes them to ECR and rolls the ECS services.
+# Needs repository secrets AWS_ROLE_ARN (an OIDC-trusted role) and AWS_REGION.
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          TAG: ${{ github.sha }}
+        run: |
+          docker build -f apps/api/Dockerfile -t $REGISTRY/demand-intel/api:$TAG -t $REGISTRY/demand-intel/api:latest .
+          docker build -t $REGISTRY/demand-intel/web:$TAG -t $REGISTRY/demand-intel/web:latest apps/web
+          docker push --all-tags $REGISTRY/demand-intel/api
+          docker push --all-tags $REGISTRY/demand-intel/web
+      - name: Roll services
+        run: |
+          aws ecs update-service --cluster demand-intel --service api --force-new-deployment
+          aws ecs update-service --cluster demand-intel --service web --force-new-deployment

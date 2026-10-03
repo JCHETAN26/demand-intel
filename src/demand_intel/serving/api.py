@@ -51,6 +51,11 @@ def serving_dir() -> Path:
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     path = serving_dir()
+    s3 = os.environ.get("DI_SERVING_S3")
+    if s3 and not (path / "summary.json").exists():
+        from demand_intel.serving.store import sync_from_s3
+
+        sync_from_s3(s3, path)
     if (path / "summary.json").exists():
         State.store = ServingStore.load(path)
     from demand_intel.serving.nlp_model import load_champion
