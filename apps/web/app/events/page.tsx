@@ -11,8 +11,9 @@ const SEV: Record<string, string> = { high: "bad", medium: "warn", low: "good" }
 export default function Events() {
   const [state, setState] = useState("");
   const [type, setType] = useState("");
+  const [limit, setLimit] = useState(25);
   const { data, error } = useApi<{ total: number; counts: Record<string, number>; items: EventRow[] }>(
-    `/v1/events/recent?limit=60${state ? `&state=${state}` : ""}${type ? `&event_type=${type}` : ""}`,
+    `/v1/events/recent?limit=${limit}${state ? `&state=${state}` : ""}${type ? `&event_type=${type}` : ""}`,
   );
   const [text, setText] = useState("Product may be contaminated with Listeria monocytogenes. Distributed in CA, TX and WI.");
   const [res, setRes] = useState<Extracted | null>(null);
@@ -62,6 +63,10 @@ export default function Events() {
             <div className="muted small">{e.product}</div>
           </article>
         ))}
+        {data && data.items.length < data.total && (
+          <div className="row"><button className="ghost" onClick={() => setLimit(limit + 25)}>Show 25 more</button>
+            <span className="muted small">showing {data.items.length} of {data.total.toLocaleString()}</span></div>
+        )}
       </section>
     </>
   );
