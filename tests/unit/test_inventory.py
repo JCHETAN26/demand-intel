@@ -81,3 +81,39 @@ def test_calibrate_rho_picks_correlation_for_correlated_truth() -> None:
     rho, cov = calibrate_rho(quant, actual.astype(float), lead_time=6, level=0.9)
     assert rho > 0.0
     assert abs(cov[rho] - 0.9) < abs(cov[0.0] - 0.9)
+
+
+def test_replay_runs_on_saved_forecasts(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from demand_intel.forecasting.backtesting.harness import SLICES, folds_for, run_backtest
+    from demand_intel.inventory.simulation.replay import DEFAULT, run_replay
+    from demand_intel.models.statistical.classical import statistical_models
+    from tests.conftest import synthetic_m5
+
+    m5 = synthetic_m5(n_items=3)
+    rows = np.arange(len(m5.series))
+    import pandas as pd
+
+    attrs = pd.DataFrame({c: "x" for c in SLICES}, index=rows)
+    run_backtest(
+        statistical_models()["ets"](),
+        m5,
+        rows,
+        "panel",
+        folds_for("all"),
+        attrs,
+        tmp_path,
+        tmp_path / "fc",
+    )
+    metrics, diffs, cal = run_replay(
+        m5, rows, "ets", tmp_path / "fc", scenarios=(DEFAULT,), n_boot=50
+    )
+    assert set(metrics["window"]) == {"fold_2", "fold_3", "fold_4", "fold_5", "test"}
+    assert set(metrics["policy"]) == {
+        "P0_fixed",
+        "P1_moving_average",
+        "P2_point_forecast",
+        "P3_probabilistic",
+        "P*_oracle",
+    }
+    assert (diffs["ci_low"] <= diffs["ci_high"]).all()
+    assert "L=7,SL=0.95" in cal["rho"]

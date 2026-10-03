@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Annotated
 
+import pandas as pd
 import typer
 
 from demand_intel import SPEC_VERSION, __version__
@@ -13,7 +14,6 @@ from demand_intel.forecasting.backtesting.splits import split_manifest
 
 if TYPE_CHECKING:
     import numpy as np
-    import pandas as pd
 
 app = typer.Typer(no_args_is_help=True, help="Demand Intelligence pipelines and evaluation.")
 ingest_app = typer.Typer(no_args_is_help=True, help="Download, validate and store source data.")
@@ -112,6 +112,80 @@ def backtest(
                 f"{name:22} {population:5} {r.fold:7} WRMSSE {r.wrmsse:.4f}  WAPE {r.wape:.4f}  "
                 f"bias {r.bias:+.4f}  {r.seconds:.1f}s"
             )
+
+
+@app.command()
+def inventory(
+    model: str = typer.Option(..., help="Forecast model whose backtest forecasts drive P2/P3."),
+    population: str = typer.Option("panel", help="Series to simulate (spec §8.1: panel)."),
+) -> None:
+    """Historical inventory replay of policies P0-P3 and the oracle (spec §8)."""
+    from demand_intel.data import load_m5
+    from demand_intel.inventory.simulation.replay import run_replay
+
+    m5 = load_m5(settings.validated_dir / "m5")
+    rows = _population_rows(population, m5.series)
+    metrics, diffs, calibration = run_replay(m5, rows, model, settings.data_dir / "forecasts")
+    out = settings.evaluation_dir
+    metrics.insert(0, "model", model)
+    metrics.to_csv(out / "inventory_simulation.csv", index=False)
+    diffs.insert(0, "model", model)
+    diffs.to_csv(out / "inventory_policy_differences.csv", index=False)
+    (out / "inventory_calibration.json").write_text(json.dumps(calibration, indent=2, default=str))
+    totals = metrics.groupby(["scenario", "policy"])[["total_cost", "fill_rate"]].agg(
+        {"total_cost": "sum", "fill_rate": "mean"}
+    )
+    typer.echo(totals.round(3).to_string())
+
+
+@app.command()
+def explain(
+    model: str = typer.Option(
+        "lgbm", help="LightGBM variant whose saved test-fold models to explain."
+    ),
+    sample: int = typer.Option(40_000, help="Rows sampled per bucket."),
+) -> None:
+    """SHAP importance (global, per category, per family) for the saved test-fold models."""
+    import lightgbm as lgb
+    import numpy as np
+
+    from demand_intel import SEED
+    from demand_intel.data import load_m5
+    from demand_intel.forecasting.backtesting.harness import truncate
+    from demand_intel.forecasting.backtesting.splits import TEST_FOLD
+    from demand_intel.models.lgbm.explain import contributions, global_importance
+    from demand_intel.pipelines.features.build import BUCKETS, build_features
+
+    m5 = load_m5(settings.validated_dir / "m5")
+    data = truncate(m5, TEST_FOLD.origin)
+    model_dir = settings.data_dir / "models" / "lgbm" / model / TEST_FOLD.name
+    meta = json.loads((model_dir / "meta.json").read_text())
+    out = settings.evaluation_dir / "shap"
+    out.mkdir(parents=True, exist_ok=True)
+    rng = np.random.default_rng(SEED)
+    rows = np.arange(len(m5.series))
+    frames_g, frames_c, frames_f = [], [], []
+    for lo, hi in BUCKETS:
+        booster = lgb.Booster(model_file=str(model_dir / f"bucket_{hi}.txt"))
+        days = np.arange(TEST_FOLD.origin + lo, TEST_FOLD.origin + hi + 1)
+        ff = build_features(data, rows, days, hi, meta["families"])
+        pick = rng.choice(
+            np.flatnonzero(ff.eligible), size=min(sample, int(ff.eligible.sum())), replace=False
+        )
+        c = contributions(booster, ff.X.iloc[pick].reset_index(drop=True))
+        cats = m5.series["cat_id"].to_numpy()[ff.series_idx[pick]]
+        g = global_importance(c).assign(bucket=hi)
+        per_cat = global_importance(c, pd.Series(cats)).assign(bucket=hi)
+        fam = c.by_family(units=True).abs().groupby(cats).mean().assign(bucket=hi)
+        frames_g.append(g)
+        frames_c.append(per_cat)
+        frames_f.append(fam.reset_index(names="cat_id"))
+    pd.concat(frames_g).to_csv(out / "shap_global.csv", index=False)
+    pd.concat(frames_c).to_csv(out / "shap_by_category.csv", index=False)
+    pd.concat(frames_f).to_csv(out / "shap_family_units_by_category.csv", index=False)
+    typer.echo(
+        pd.concat(frames_g).groupby("family")["mean_abs_shap"].sum().sort_values().to_string()
+    )
 
 
 @ingest_app.command("m5")
