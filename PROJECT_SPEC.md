@@ -1,6 +1,6 @@
 # Demand Intelligence — Project Specification & Experimental Contract
 
-Status: **v0.2** (v0.1 frozen before any modeling; see the Change Log).
+Status: **v0.3** (v0.1 frozen before any modeling; see the Change Log).
 Any change to a definition, metric, split, or gate after modeling begins must be
 recorded in the [Change Log](#12-change-log) with the reason and date. Results
 produced under an older spec version must say which version they used.
@@ -268,12 +268,15 @@ computed on FULL for models that ran on FULL.
 - **Quantiles:** τ ∈ {0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95}. The UI shows
   P10/P50/P90. P95 exists because the default service level (§8) requires it.
 - **Primary metric:** scaled pinball loss averaged over τ (WSPL, the M5 Uncertainty
-  definition, applied to our τ set).
+  definition, applied to our τ set). It is computed at the bottom level, where models
+  produce quantiles (v0.3).
 - **Calibration:** empirical coverage of each quantile (target ≈ τ). The 80%
   interval [P10, P90] is checked for coverage and mean width. The reliability
   is reported per category and demand class.
-- **Acceptance:** the coverage of P90 lies in [0.87, 0.93] and the coverage of
-  P10 lies in [0.07, 0.13] on the backtest folds. If raw quantiles fail, split
+- **Acceptance (v0.3, discrete demand):** a τ-quantile is calibrated if
+  P(y < q_τ) − 0.03 ≤ τ ≤ P(y ≤ q_τ) + 0.03 on the backtest folds, for τ = 0.10 and
+  0.90 overall and per category. P(y ≤ q) = τ alone is not attainable for counts: when
+  60% of days are zero, any correct P10 is 0, so 60% of actuals fall at or below it. If raw quantiles fail, split
   conformal adjustment fit on the folds is applied before serving, and both the
   raw and adjusted numbers are reported.
 - **Lead-time demand is a sum.** Quantiles of a multi-day sum must **not** be
@@ -538,4 +541,5 @@ RAM. This hardware sets three constraints:
 | Version | Date | Change | Reason |
 |---------|------|--------|--------|
 | 0.1 | 2026-10-02 | Initial contract | — |
+| 0.3 | 2026-10-03 | §5.5 quantile acceptance uses the discrete calibration bracket P(y<q) ≤ τ ≤ P(y≤q); WSPL is computed at the bottom level | The v0.1 band on P(y≤q) cannot be met by a correct forecast of count data with many zeros. Quantiles are produced only for bottom-level series |
 | 0.2 | 2026-10-03 | §2.1 suspicious zero runs use the trailing share of zero days, P = p0^L < 0.001, not Poisson. Only 14–55-day runs are suspected stockouts; 56+-day runs are reported as dormant periods | On M5 the v0.1 rule flagged 14.6% of active series-days, 65% of them in runs of 90+ days. Those are regime changes, not replenishment stockouts. Both tests' shares are reported in `evaluation/eda/eda_overview.json` |

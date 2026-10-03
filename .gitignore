@@ -39,3 +39,4 @@ node_modules/
 
 # Notebooks
 .ipynb_checkpoints/
+logs/

@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from demand_intel.data import M5Data
 from demand_intel.pipelines.ingestion.m5 import M5Expectations
 
 ITEMS = (("FOODS_1_001", "FOODS_1", "FOODS"), ("HOBBIES_1_001", "HOBBIES_1", "HOBBIES"))
@@ -96,3 +97,59 @@ def m5_dirs(tmp_path: Path) -> M5Dirs:
 
 
 Mutator = Callable[[pd.DataFrame], pd.DataFrame]
+
+
+def synthetic_m5(n_items: int = 6, n_days: int = 1941, seed: int = 0) -> M5Data:
+    """A small but structurally complete M5Data: real calendar layout, weekly seasonality,
+    price changes, two states, items appearing at different times."""
+    import numpy as np
+
+    rng = np.random.default_rng(seed)
+    cal_days = 1969
+    dates = pd.date_range("2011-01-29", periods=cal_days, freq="D")
+    cal = pd.DataFrame(
+        {
+            "date": dates,
+            "wm_yr_wk": (11101 + np.arange(cal_days) // 7).astype("int32"),
+            "weekday": dates.day_name(),
+            "wday": ((dates.dayofweek + 2) % 7 + 1).astype("int16"),
+            "month": dates.month.astype("int16"),
+            "year": dates.year.astype("int16"),
+            "d": np.arange(1, cal_days + 1, dtype="int16"),
+            "event_name_1": np.where(np.arange(cal_days) % 97 == 0, "SuperBowl", None),
+            "event_type_1": np.where(np.arange(cal_days) % 97 == 0, "Sporting", None),
+            "event_name_2": None,
+            "event_type_2": None,
+            "snap_CA": (dates.day <= 10).astype("int8"),
+            "snap_TX": (dates.day <= 12).astype("int8"),
+            "snap_WI": (dates.day <= 14).astype("int8"),
+        }
+    )
+    rows = []
+    for k in range(n_items):
+        cat = ("FOODS", "HOBBIES", "HOUSEHOLD")[k % 3]
+        for store, state in (("CA_1", "CA"), ("TX_1", "TX")):
+            item = f"{cat}_1_{k:03d}"
+            rows.append(
+                {
+                    "id": f"{item}_{store}",
+                    "item_id": item,
+                    "dept_id": f"{cat}_1",
+                    "cat_id": cat,
+                    "store_id": store,
+                    "state_id": state,
+                }
+            )
+    series = pd.DataFrame(rows)
+    n = len(series)
+    weekly = np.array([1.3, 1.2, 0.9, 0.8, 0.8, 0.9, 1.1])
+    level = rng.uniform(0.5, 6, size=n)
+    start = rng.integers(0, 400, size=n)
+    t = np.arange(n_days)
+    lam = level[:, None] * weekly[(t % 7)][None, :]
+    sales = rng.poisson(lam).astype(np.int32)
+    sales[t[None, :] < start[:, None]] = 0
+    prices = np.repeat(rng.uniform(1, 10, size=(n, 1)), cal_days, axis=1).astype(np.float32)
+    prices[:, 1000:] *= 0.9
+    prices[np.arange(cal_days)[None, :] < start[:, None]] = np.nan
+    return M5Data(series=series, sales=sales, calendar=cal, prices=prices)

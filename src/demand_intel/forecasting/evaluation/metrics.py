@@ -10,6 +10,8 @@ Conventions:
   of the 12 levels; the score is the mean over levels of the weighted RMSSE.
 - Quantile metrics are computed at the bottom level (item × store), where the models
   produce quantiles; see spec §5.5 (v0.3).
+- Demand is discrete, so a calibrated τ-quantile satisfies P(y < q) <= τ <= P(y <= q)
+  rather than P(y <= q) = τ. Both shares are reported (`cov_lt_qXX`, `cov_qXX`).
 """
 
 from dataclasses import dataclass
@@ -140,6 +142,7 @@ def per_series_metrics(
                 loss = np.where(m, pinball(y, qq, tau), 0.0).sum(axis=1) / days
                 spl += loss / truth.scale_abs
                 out[f"below_q{round(tau * 100):02d}"] = np.where(m, y <= qq, False).sum(axis=1)
+                out[f"under_q{round(tau * 100):02d}"] = np.where(m, y < qq, False).sum(axis=1)
             out["spl"] = spl / len(quantiles)
             if 0.1 in quantiles and 0.9 in quantiles:
                 lo, hi = quantiles[0.1][:, :h], quantiles[0.9][:, :h]
@@ -172,6 +175,8 @@ def summarize(ps: pd.DataFrame) -> dict[str, float]:
         res["wspl"] = float((ps.loc[ok, "spl"] * wq).sum() / wq.sum()) if wq.sum() > 0 else np.nan
         for col in [c for c in ps.columns if c.startswith("below_q")]:
             res[col.replace("below_", "cov_")] = float(ps[col].sum() / days)
+        for col in [c for c in ps.columns if c.startswith("under_q")]:
+            res[col.replace("under_", "cov_lt_")] = float(ps[col].sum() / days)
         if "inside_80" in ps:
             res["cov_80"] = float(ps["inside_80"].sum() / days)
             res["width_80"] = float(ps["width_80"].sum() / days)

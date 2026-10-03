@@ -99,6 +99,7 @@ def test_quantile_coverage_counts() -> None:
     q = {0.1: np.full_like(y, 4.0), 0.5: np.full_like(y, 5.0), 0.9: np.full_like(y, 6.0)}
     s = summarize(per_series_metrics(truth, q[0.5], q, 28))
     assert s["cov_q10"] == 0.0 and s["cov_q50"] == 1.0 and s["cov_q90"] == 1.0
+    assert s["cov_lt_q50"] == 0.0 and s["cov_lt_q90"] == 1.0
     assert s["cov_80"] == 1.0 and s["width_80"] == pytest.approx(2.0)
 
 
