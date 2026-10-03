@@ -92,6 +92,8 @@ def backtest(
     runs = pd.read_parquet(settings.validated_dir / "m5" / "suspicious_zero_runs.parquet")
     rows = _population_rows(population, m5.series)
     attrs = profile.iloc[rows][list(SLICES)]
+    weather_path = settings.validated_dir / "weather" / "weather_state_daily.parquet"
+    weather = pd.read_parquet(weather_path) if weather_path.exists() else None
     cache = TruthCache(m5)
     for name in models:
         res = run_backtest(
@@ -104,6 +106,7 @@ def backtest(
             settings.evaluation_dir / "backtest",
             settings.data_dir / "forecasts",
             stockout_runs=runs,
+            weather=weather,
             truth_cache=cache,
         )
         head = res[(res["slice"] == "all") & (res["window"] == 28)]
@@ -158,7 +161,7 @@ def explain(
 
     m5 = load_m5(settings.validated_dir / "m5")
     data = truncate(m5, TEST_FOLD.origin)
-    model_dir = settings.data_dir / "models" / "lgbm" / model / TEST_FOLD.name
+    model_dir = settings.data_dir / "models" / "lgbm" / model / "full" / TEST_FOLD.name
     meta = json.loads((model_dir / "meta.json").read_text())
     out = settings.evaluation_dir / "shap"
     out.mkdir(parents=True, exist_ok=True)

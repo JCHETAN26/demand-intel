@@ -46,9 +46,9 @@ def forecast_loss(mean: torch.Tensor, q: torch.Tensor, y: torch.Tensor) -> torch
 class TrainConfig:
     train_days: int = 728
     origin_stride: int = 3
-    samples_per_epoch: int = 60_000
+    samples_per_epoch: int = 40_000
     batch_size: int = 512
-    epochs: int = 15
+    epochs: int = 10
     lr: float = 2e-3
     weight_decay: float = 1e-4
     patience: int = 3

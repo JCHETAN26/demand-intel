@@ -48,6 +48,7 @@ class FoldContext:
     # Pre-origin series attributes (category, store, demand class from the profiling
     # window that ends at the first backtest origin), aligned with `rows`.
     attrs: pd.DataFrame | None = None
+    population: str = "full"
     extras: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -206,6 +207,7 @@ def run_backtest(
             rows=rows,
             weather=weather,
             attrs=attrs.reset_index(drop=True),
+            population=population,
         )
         t0 = time.perf_counter()
         fc = forecaster.forecast(ctx)

@@ -126,7 +126,7 @@ class LightGBMForecaster:
             for q, v in qmap.apply(pred).items():
                 quant[q][:, cols] = np.where(on_sale, v, 0.0).reshape(n, len(days))
             if self.model_dir is not None:
-                d = self.model_dir / self.name / ctx.fold.name
+                d = self.model_dir / self.name / ctx.population / ctx.fold.name
                 d.mkdir(parents=True, exist_ok=True)
                 booster.save_model(
                     str(d / f"bucket_{hi}.txt"), num_iteration=booster.best_iteration
