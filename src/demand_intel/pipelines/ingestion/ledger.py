@@ -32,6 +32,11 @@ def libpq_url(sqlalchemy_url: str) -> str:
     return sqlalchemy_url.replace("postgresql+psycopg://", "postgresql://", 1)
 
 
+def ensure_ledger(database_url: str) -> None:
+    with psycopg.connect(libpq_url(database_url)) as conn:
+        conn.execute(DDL)
+
+
 def record(database_url: str, report: IngestionReport) -> int:
     """Insert the report's files into the ledger. Returns the number of new rows."""
     inserted = 0
