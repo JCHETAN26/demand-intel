@@ -1,5 +1,6 @@
 """Name → forecaster factory. Imports are lazy so heavy dependencies load only when used."""
 
+import contextlib
 from collections.abc import Callable
 
 from demand_intel.forecasting.backtesting.harness import Forecaster
@@ -49,8 +50,24 @@ def _lgbm() -> dict[str, Callable[[], Forecaster]]:
     return out
 
 
+def _deep() -> dict[str, Callable[[], Forecaster]]:
+    from demand_intel.config import settings
+    from demand_intel.models.deep_learning.lstm import Seq2SeqLSTM
+    from demand_intel.models.deep_learning.tft import TemporalFusionTransformer
+    from demand_intel.models.deep_learning.train import DeepForecaster
+
+    ckpt = settings.data_dir / "models" / "deep"
+    return {
+        "lstm": lambda: DeepForecaster("lstm", Seq2SeqLSTM, checkpoint_dir=ckpt),
+        "tft": lambda: DeepForecaster("tft", TemporalFusionTransformer, checkpoint_dir=ckpt),
+    }
+
+
 def available() -> dict[str, Callable[[], Forecaster]]:
-    return {**_baselines(), **_statistical(), **_lgbm()}
+    factories = {**_baselines(), **_statistical(), **_lgbm()}
+    with contextlib.suppress(ImportError):  # torch is an optional extra
+        factories.update(_deep())
+    return factories
 
 
 def make(name: str) -> Forecaster:
