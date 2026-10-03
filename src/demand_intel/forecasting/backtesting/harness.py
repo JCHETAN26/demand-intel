@@ -45,6 +45,9 @@ class FoldContext:
     data: M5Data  # sales truncated at the origin; calendar/prices complete
     rows: np.ndarray  # series (row indices into data) to forecast
     weather: pd.DataFrame | None = None
+    # Pre-origin series attributes (category, store, demand class from the profiling
+    # window that ends at the first backtest origin), aligned with `rows`.
+    attrs: pd.DataFrame | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -197,7 +200,13 @@ def run_backtest(
     fdir = forecast_dir / forecaster.name / population
     fdir.mkdir(parents=True, exist_ok=True)
     for fold in folds:
-        ctx = FoldContext(fold=fold, data=truncate(m5, fold.origin), rows=rows, weather=weather)
+        ctx = FoldContext(
+            fold=fold,
+            data=truncate(m5, fold.origin),
+            rows=rows,
+            weather=weather,
+            attrs=attrs.reset_index(drop=True),
+        )
         t0 = time.perf_counter()
         fc = forecaster.forecast(ctx)
         seconds = time.perf_counter() - t0

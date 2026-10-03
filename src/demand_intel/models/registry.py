@@ -15,8 +15,14 @@ def _baselines() -> dict[str, Callable[[], Forecaster]]:
     }
 
 
+def _statistical() -> dict[str, Callable[[], Forecaster]]:
+    from demand_intel.models.statistical.classical import statistical_models
+
+    return statistical_models()
+
+
 def available() -> dict[str, Callable[[], Forecaster]]:
-    return {**_baselines()}
+    return {**_baselines(), **_statistical()}
 
 
 def make(name: str) -> Forecaster:

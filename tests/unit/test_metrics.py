@@ -170,3 +170,24 @@ def test_stockout_mask_clips_runs_to_window() -> None:
     keep = stockout_mask(runs, np.array([0, 1]), fold)
     assert (~keep[0]).sum() == 2 and not keep[0, 0] and not keep[0, 1]
     assert (~keep[1]).sum() == 2 and not keep[1, 3] and not keep[1, 4]
+
+
+def test_statistical_models_produce_valid_forecasts() -> None:
+    from demand_intel.forecasting.backtesting.harness import truncate
+    from demand_intel.models.statistical.classical import statistical_models
+
+    m5 = _synthetic_m5()
+    fold = BACKTEST_FOLDS[0]
+    attrs = pd.DataFrame({"demand_class": ["smooth", "lumpy", "intermittent", "erratic"]})
+    ctx = FoldContext(fold=fold, data=truncate(m5, fold.origin), rows=np.arange(4), attrs=attrs)
+    models = statistical_models()
+    for name in ("ses_seasonal", "tsb", "stat_class_selected", "ets"):
+        fc = models[name]().forecast(ctx)
+        assert fc.point.shape == (4, HORIZON)
+        assert np.isfinite(fc.point).all() and (fc.point >= 0).all()
+    ets = models["ets"]().forecast(ctx)
+    assert ets.quantiles is not None
+    qs = sorted(ets.quantiles)
+    assert qs == [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]
+    stacked = np.stack([ets.quantiles[q] for q in qs])
+    assert (np.diff(stacked, axis=0) >= -1e-4).all()  # quantiles are ordered
