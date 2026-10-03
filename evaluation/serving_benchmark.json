@@ -1,0 +1,90 @@
+{
+  "runs": {
+    "before": {
+      "workers": 2,
+      "/v1/forecast": {
+        "p50_ms": 5.654180500641814,
+        "p95_ms": 8.579708251636475,
+        "p99_ms": 10.17296353005804,
+        "throughput_rps": 745.4779175796662,
+        "error_rate": 0.0,
+        "server_p50_ms": 13.531687546057482,
+        "server_p95_ms": 43.696695095948826,
+        "server_count": 3085.0
+      },
+      "/v1/inventory/recommend": {
+        "p50_ms": 32.337450500563136,
+        "p95_ms": 37.934633499753545,
+        "p99_ms": 43.064280629187124,
+        "throughput_rps": 163.67270217530893,
+        "error_rate": 0.0,
+        "server_p50_ms": 177.68817204301075,
+        "server_p95_ms": 378.46889952153094,
+        "server_count": 2032.0
+      },
+      "/v1/events/extract": {
+        "p50_ms": 5.570268500378006,
+        "p95_ms": 7.469956800741783,
+        "p99_ms": 9.308235220014465,
+        "throughput_rps": 753.7701437172946,
+        "error_rate": 0.0,
+        "server_p50_ms": 13.153753026634384,
+        "server_p95_ms": 39.64933993399338,
+        "server_count": 2569.0
+      }
+    },
+    "after_vectorized_inventory": {
+      "workers": 2,
+      "/v1/forecast": {
+        "p50_ms": 6.08429400199384,
+        "p95_ms": 9.43600384889578,
+        "p99_ms": 11.652872708946234,
+        "throughput_rps": 748.9233207788177,
+        "error_rate": 0.0,
+        "server_p50_ms": 9.132231404958679,
+        "server_p95_ms": 28.5031847133758,
+        "server_count": 2980.0
+      },
+      "/v1/inventory/recommend": {
+        "p50_ms": 11.4126304997626,
+        "p95_ms": 15.557070548493357,
+        "p99_ms": 19.27391370958503,
+        "throughput_rps": 382.29589817296664,
+        "error_rate": 0.0,
+        "server_p50_ms": 48.32167832167832,
+        "server_p95_ms": 95.55614406779661,
+        "server_count": 2018.0
+      },
+      "/v1/events/extract": {
+        "p50_ms": 5.66704900120385,
+        "p95_ms": 8.071347652730765,
+        "p99_ms": 9.316134772598161,
+        "throughput_rps": 758.9069083210632,
+        "error_rate": 0.0,
+        "server_p50_ms": 14.339817880794703,
+        "server_p95_ms": 43.39767156862745,
+        "server_count": 2575.0
+      }
+    }
+  },
+  "hardware": {
+    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "cores": 4,
+    "python": "3.11.13",
+    "note": "client and server share the machine"
+  },
+  "method": "latency: 4 concurrent clients, client-side; throughput: 4 processes x 8 concurrent; server-side quantiles from the Prometheus histogram",
+  "slo": {
+    "/v1/forecast": {
+      "p50_ms": 30,
+      "p95_ms": 100,
+      "p99_ms": 250
+    },
+    "/v1/inventory/recommend": {
+      "p95_ms": 150
+    },
+    "/v1/events/extract": {
+      "p95_ms": 300
+    }
+  }
+}

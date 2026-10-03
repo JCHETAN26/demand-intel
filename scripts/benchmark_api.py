@@ -1,15 +1,21 @@
 """Serving benchmark (PROJECT_SPEC.md §11.3, plan Phase 32) → evaluation/serving_benchmark.json.
 
-Starts the API on the real serving bundle, warms it, then drives each endpoint with a fixed
-number of concurrent clients. Latency is measured client-side (includes HTTP and JSON).
-Two configurations are compared: 1 worker (baseline) and N workers (the optimization).
+Starts the API on the real serving bundle (2 workers, as deployed), warms it, then per
+endpoint:
+- latency phase: 4 concurrent clients, client-side p50/p95/p99 (includes HTTP + JSON)
+- throughput phase: 4 client processes × 8 concurrent requests, total requests per second
+- server-side p50/p95 from the API's own Prometheus histogram (excludes the client)
 
-Usage: uv run python scripts/benchmark_api.py [--requests 2000] [--concurrency 16]
+`--label` names the run (e.g. before / after an optimization); results from earlier
+labels in the output file are kept so before/after can be compared.
+
+Usage: uv run python scripts/benchmark_api.py --label after
 """
 
 import argparse
 import asyncio
 import json
+import multiprocessing as mp
 import os
 import platform
 import random
@@ -24,6 +30,8 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = ROOT / "data" / "serving"
+OUT = ROOT / "evaluation" / "serving_benchmark.json"
+PORT = 8790
 
 
 def cpu_model() -> str:
@@ -36,41 +44,58 @@ def cpu_model() -> str:
     return platform.processor()
 
 
-async def drive(url: str, payloads: list[dict[str, object]], concurrency: int) -> dict[str, float]:
+async def _drive(
+    url: str, payloads: list[dict[str, object]], concurrency: int
+) -> tuple[list[float], int]:
     lat: list[float] = []
     errors = 0
-    queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
-    for p in payloads:
-        queue.put_nowait(p)
-
+    it = iter(payloads)
     async with httpx.AsyncClient(timeout=30) as client:
 
         async def worker() -> None:
             nonlocal errors
-            while not queue.empty():
-                body = queue.get_nowait()
+            for body in it:
                 t0 = time.perf_counter()
                 r = await client.post(url, json=body)
                 lat.append(time.perf_counter() - t0)
-                if r.status_code >= 500:
-                    errors += 1
+                errors += r.status_code >= 500
 
-        t0 = time.perf_counter()
         await asyncio.gather(*(worker() for _ in range(concurrency)))
-        wall = time.perf_counter() - t0
-    ms = np.array(lat) * 1000
-    return {
-        "requests": len(lat),
-        "p50_ms": float(np.percentile(ms, 50)),
-        "p95_ms": float(np.percentile(ms, 95)),
-        "p99_ms": float(np.percentile(ms, 99)),
-        "rps": len(lat) / wall,
-        "error_rate": errors / max(len(lat), 1),
-    }
+    return lat, errors
 
 
-def start(workers: int, port: int) -> subprocess.Popen[bytes]:
-    env = {**os.environ, "DI_SERVING_DIR": str(BUNDLE)}
+def _proc(args: tuple[str, list[dict[str, object]], int]) -> tuple[list[float], int]:
+    return asyncio.run(_drive(*args))
+
+
+def server_quantiles(route: str) -> dict[str, float]:
+    text = httpx.get(f"http://127.0.0.1:{PORT}/metrics", timeout=10).text
+    buckets = []
+    for line in text.splitlines():
+        if line.startswith("di_request_seconds_bucket") and f'route="{route}"' in line:
+            le = line.split('le="')[1].split('"')[0]
+            buckets.append(
+                (float("inf") if le == "+Inf" else float(le), float(line.rsplit(" ", 1)[1]))
+            )
+    buckets.sort()
+    total = buckets[-1][1] if buckets else 0.0
+
+    def q(p: float) -> float:
+        target, prev_le, prev_c = p * total, 0.0, 0.0
+        for le, c in buckets:
+            if c >= target:
+                if le == float("inf"):
+                    return prev_le * 1000
+                frac = (target - prev_c) / max(c - prev_c, 1e-9)
+                return (prev_le + frac * (le - prev_le)) * 1000
+            prev_le, prev_c = le, c
+        return float("nan")
+
+    return {"server_p50_ms": q(0.5), "server_p95_ms": q(0.95), "server_count": total}
+
+
+def start(workers: int) -> subprocess.Popen[bytes]:
+    env = {**os.environ, "DI_SERVING_DIR": str(BUNDLE), "PROMETHEUS_MULTIPROC_DIR": ""}
     proc = subprocess.Popen(
         [
             sys.executable,
@@ -78,7 +103,7 @@ def start(workers: int, port: int) -> subprocess.Popen[bytes]:
             "uvicorn",
             "demand_intel.serving.api:app",
             "--port",
-            str(port),
+            str(PORT),
             "--workers",
             str(workers),
             "--log-level",
@@ -86,9 +111,9 @@ def start(workers: int, port: int) -> subprocess.Popen[bytes]:
         ],
         env=env,
     )
-    for _ in range(120):
+    for _ in range(180):
         try:
-            if httpx.get(f"http://127.0.0.1:{port}/v1/health", timeout=1).json()["status"] == "ok":
+            if httpx.get(f"http://127.0.0.1:{PORT}/v1/health", timeout=1).json()["status"] == "ok":
                 return proc
         except (httpx.HTTPError, KeyError, ValueError):
             time.sleep(1)
@@ -96,28 +121,16 @@ def start(workers: int, port: int) -> subprocess.Popen[bytes]:
     raise RuntimeError("API did not become healthy")
 
 
-def rss_mb(proc: subprocess.Popen[bytes]) -> float:
-    try:
-        out = subprocess.run(
-            ["ps", "-o", "rss=", "--ppid", str(proc.pid)], capture_output=True, text=True
-        )
-        own = subprocess.run(
-            ["ps", "-o", "rss=", "-p", str(proc.pid)], capture_output=True, text=True
-        )
-        return sum(int(x) for x in (out.stdout + own.stdout).split()) / 1024
-    except (OSError, ValueError):
-        return float("nan")
-
-
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--requests", type=int, default=2000)
-    ap.add_argument("--concurrency", type=int, default=16)
+    ap.add_argument("--label", default="run")
     ap.add_argument("--workers", type=int, default=2)
+    ap.add_argument("--latency-requests", type=int, default=1000)
+    ap.add_argument("--throughput-requests", type=int, default=4000)
     args = ap.parse_args()
     series = pd.read_parquet(BUNDLE / "series.parquet")[["item_id", "store_id"]].to_dict("records")
     rng = random.Random(0)
-    picks = [rng.choice(series) for _ in range(args.requests)]
+    picks = [rng.choice(series) for _ in range(args.throughput_requests)]
     endpoints = {
         "/v1/forecast": [{**p, "horizon": 28} for p in picks],
         "/v1/inventory/recommend": [
@@ -127,48 +140,54 @@ def main() -> None:
         "/v1/events/extract": [
             {"text": "Undeclared milk and soy in granola bars. Distributed in CA and TX."}
         ]
-        * args.requests,
+        * args.throughput_requests,
     }
-    results: dict[str, object] = {
-        "hardware": {
-            "cpu": cpu_model(),
-            "cores": os.cpu_count(),
-            "python": platform.python_version(),
-        },
-        "settings": {
-            "requests": args.requests,
-            "concurrency": args.concurrency,
-            "client": "httpx AsyncClient, same machine (includes HTTP + JSON)",
-        },
-        "slo": {
-            "/v1/forecast": {"p50_ms": 30, "p95_ms": 100, "p99_ms": 250},
-            "/v1/inventory/recommend": {"p95_ms": 150},
-            "/v1/events/extract": {"p95_ms": 300},
-        },
-        "configs": {},
+    run: dict[str, object] = {"workers": args.workers}
+    proc = start(args.workers)
+    try:
+        for path, payloads in endpoints.items():
+            url = f"http://127.0.0.1:{PORT}{path}"
+            asyncio.run(_drive(url, payloads[:100], 4))  # warm-up
+            lat, err = asyncio.run(_drive(url, payloads[: args.latency_requests], 4))
+            ms = np.array(lat) * 1000
+            chunks = [payloads[i::4] for i in range(4)]
+            t0 = time.perf_counter()
+            with mp.get_context("spawn").Pool(4) as pool:
+                outs = pool.map(_proc, [(url, c, 8) for c in chunks])
+            wall = time.perf_counter() - t0
+            done = sum(len(o[0]) for o in outs)
+            run[path] = {
+                "p50_ms": float(np.percentile(ms, 50)),
+                "p95_ms": float(np.percentile(ms, 95)),
+                "p99_ms": float(np.percentile(ms, 99)),
+                "throughput_rps": done / wall,
+                "error_rate": (err + sum(o[1] for o in outs)) / (len(lat) + done),
+                **server_quantiles(path),
+            }
+            print(path, json.dumps(run[path]))
+    finally:
+        proc.terminate()
+        proc.wait(timeout=30)
+    results: dict[str, object] = json.loads(OUT.read_text()) if OUT.exists() else {}
+    if "runs" not in results:
+        results = {"runs": {}}
+    results["hardware"] = {
+        "cpu": cpu_model(),
+        "cores": os.cpu_count(),
+        "python": platform.python_version(),
+        "note": "client and server share the machine",
     }
-    for label, workers in (
-        ("baseline_1_worker", 1),
-        (f"optimized_{args.workers}_workers", args.workers),
-    ):
-        port = 8765 + workers
-        proc = start(workers, port)
-        try:
-            for path, payloads in endpoints.items():  # warm-up
-                asyncio.run(drive(f"http://127.0.0.1:{port}{path}", payloads[:50], 4))
-            cfg: dict[str, object] = {"workers": workers}
-            for path, payloads in endpoints.items():
-                cfg[path] = asyncio.run(
-                    drive(f"http://127.0.0.1:{port}{path}", payloads, args.concurrency)
-                )
-            cfg["rss_mb"] = rss_mb(proc)
-            results["configs"][label] = cfg  # type: ignore[index]
-        finally:
-            proc.terminate()
-            proc.wait(timeout=30)
-    out = ROOT / "evaluation" / "serving_benchmark.json"
-    out.write_text(json.dumps(results, indent=2))
-    print(json.dumps(results["configs"], indent=2))
+    results["method"] = (
+        "latency: 4 concurrent clients, client-side; throughput: 4 processes x 8 "
+        "concurrent; server-side quantiles from the Prometheus histogram"
+    )
+    results["slo"] = {
+        "/v1/forecast": {"p50_ms": 30, "p95_ms": 100, "p99_ms": 250},
+        "/v1/inventory/recommend": {"p95_ms": 150},
+        "/v1/events/extract": {"p95_ms": 300},
+    }
+    results["runs"][args.label] = run  # type: ignore[index]
+    OUT.write_text(json.dumps(results, indent=2))
 
 
 if __name__ == "__main__":

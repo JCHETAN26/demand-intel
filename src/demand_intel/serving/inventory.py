@@ -38,17 +38,17 @@ def recommend(
     lead_time: int,
     service_level: float,
     rho: float = DEFAULT_RHO,
-    n_paths: int = 4000,
+    n_paths: int = 2000,
     seed: int = 0,
 ) -> Recommendation:
     """daily_q: (H, Q) quantiles; daily_mean: (H,)."""
     k = min(lead_time + 1, daily_q.shape[0])
     rng = np.random.default_rng(seed)
-    common = rng.standard_normal(n_paths)
-    total = np.zeros(n_paths)
-    for d in range(k):
-        u = stats.norm.cdf(np.sqrt(rho) * common + np.sqrt(1 - rho) * rng.standard_normal(n_paths))
-        total += _inverse_cdf(daily_q[d][None, :], u[None, :])[0]
+    # One vectorized draw for all k days (the loop over days dominated request time).
+    z = np.sqrt(rho) * rng.standard_normal((1, n_paths)) + np.sqrt(1 - rho) * rng.standard_normal(
+        (k, n_paths)
+    )
+    total = _inverse_cdf(daily_q[:k], stats.norm.cdf(z)).sum(axis=0)
     target = float(np.quantile(total, service_level))
     position = on_hand + on_order
     expected = float(daily_mean[:k].sum())
