@@ -27,6 +27,8 @@ class ServingStore:
     driver_names: list[str]
     summary: dict[str, Any]
     risk: pd.DataFrame
+    lab: dict[str, Any] = field(default_factory=dict)
+    events: pd.DataFrame = field(default_factory=pd.DataFrame)
     calendar: dict[int, str] = field(default_factory=dict)
 
     @classmethod
@@ -59,6 +61,10 @@ class ServingStore:
             .sort_values("series")
             .reset_index(drop=True),
             calendar={int(k): v for k, v in summary.get("calendar", {}).items()},
+            lab=json.loads((path / "lab.json").read_text()) if (path / "lab.json").exists() else {},
+            events=pd.read_parquet(path / "events.parquet")
+            if (path / "events.parquet").exists()
+            else pd.DataFrame(),
         )
 
     def row(self, item_id: str, store_id: str) -> int | None:

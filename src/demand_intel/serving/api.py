@@ -14,6 +14,7 @@ from typing import Any, Literal
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field
 
@@ -61,6 +62,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Demand Intelligence API", version="1.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.environ.get("DI_CORS_ORIGINS", "http://localhost:3000").split(","),
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 
 @app.middleware("http")
@@ -276,6 +283,29 @@ def risk(kind: Literal["stockout", "excess"] = "stockout", limit: int = 50) -> d
         "gap",
     ]
     return {"kind": kind, "items": r[cols].round(2).to_dict("records")}
+
+
+@app.get("/v1/lab")
+def lab() -> dict[str, Any]:
+    """Evaluation artifacts for the Model Lab page (copied from evaluation/, not recomputed)."""
+    return _store().lab
+
+
+@app.get("/v1/events/recent")
+def recent_events(
+    state: str | None = None, event_type: str | None = None, limit: int = 100
+) -> dict[str, Any]:
+    """Recall reports from the 12 months before the forecast origin, with extracted events."""
+    ev = _store().events
+    if ev.empty:
+        return {"total": 0, "items": [], "counts": {}}
+    if state:
+        ev = ev[ev["nationwide"] | ev["states"].map(lambda s: state in list(s))]
+    if event_type:
+        ev = ev[ev["event_type"] == event_type]
+    counts = ev["event_type"].value_counts().to_dict()
+    items = ev.head(min(limit, 500)).assign(states=lambda x: x["states"].map(list))
+    return {"total": len(ev), "counts": counts, "items": items.to_dict("records")}
 
 
 @app.get("/metrics")

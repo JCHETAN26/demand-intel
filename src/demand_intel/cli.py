@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any
 
 import pandas as pd
@@ -134,6 +135,27 @@ def forecast_batch() -> None:
         profile,
     )
     typer.echo(f"bundle: {info.path} (origin d_{info.origin}, {info.series} series, {info.model})")
+    _write_bundle_extras(info.path)
+
+
+def _write_bundle_extras(bundle: Path) -> None:
+    from demand_intel.pipelines.inference.serving import write_extras
+
+    summary = json.loads((bundle / "summary.json").read_text())
+    recalls_path = settings.validated_dir / "text" / "recalls.parquet"
+    recalls = pd.read_parquet(recalls_path) if recalls_path.exists() else None
+    preds = None
+    champion = settings.data_dir / "nlp" / "champion_predictions.parquet"
+    if champion.exists():
+        preds = pd.read_parquet(champion)
+    write_extras(bundle, settings.evaluation_dir, recalls, preds, summary["origin_date"])
+
+
+@app.command("bundle-extras")
+def bundle_extras() -> None:
+    """Refresh the Model Lab payload and recent events in the serving bundle."""
+    _write_bundle_extras(settings.data_dir / "serving")
+    typer.echo("bundle extras written")
 
 
 @app.command()

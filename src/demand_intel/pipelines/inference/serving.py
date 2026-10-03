@@ -200,3 +200,79 @@ def build_bundle(
         summary["inventory_calibration"] = json.loads(calib.read_text())
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     return BundleInfo(path=out_dir, origin=origin, model=model.name, series=n)
+
+
+LAB_FILES = {
+    "model_comparison": "model_comparison.csv",
+    "forecast_ablation": "forecast_ablation.csv",
+    "paired_tests": "paired_tests.csv",
+    "probabilistic_calibration": "probabilistic_calibration.csv",
+    "nlp_results": "nlp_results.csv",
+    "inventory_simulation": "inventory_simulation.csv",
+    "inventory_policy_differences": "inventory_policy_differences.csv",
+    "multimodal_ablation": "multimodal_ablation.csv",
+}
+
+
+def write_extras(
+    out_dir: Path,
+    evaluation_dir: Path,
+    recalls: pd.DataFrame | None,
+    event_predictions: pd.DataFrame | None,
+    origin_date: str,
+) -> None:
+    """Model Lab payload (lab.json) and recent recall events (events.parquet) for the UI.
+
+    Only evaluation artifacts are copied; nothing is recomputed or typed in here.
+    """
+    lab: dict[str, Any] = {}
+    for key, name in LAB_FILES.items():
+        path = evaluation_dir / name
+        if path.exists():
+            lab[key] = json.loads(pd.read_csv(path).to_json(orient="records"))
+    for key, name in (
+        ("registry", "registry.json"),
+        ("monitoring", "monitoring_report.json"),
+        ("nlp_dataset", "nlp_dataset.json"),
+    ):
+        path = evaluation_dir / name
+        if path.exists():
+            lab[key] = json.loads(path.read_text())
+    (out_dir / "lab.json").write_text(json.dumps(lab, default=str))
+
+    if recalls is None:
+        return
+    end = pd.Timestamp(origin_date)
+    recent = recalls[
+        (recalls["report_date"] > end - pd.Timedelta(days=365)) & (recalls["report_date"] <= end)
+    ]
+    from demand_intel.models.nlp.labeling import weak_label
+
+    events = pd.DataFrame(
+        {
+            "doc_id": recent["doc_id"].to_numpy(),
+            "report_date": recent["report_date"].dt.strftime("%Y-%m-%d").to_numpy(),
+            "reason": recent["reason_for_recall"].to_numpy(),
+            "product": recent["product_description"].str.slice(0, 300).to_numpy(),
+            "distribution": recent["distribution_pattern"].fillna("").to_numpy(),
+            "states": recent["states"].map(list).to_numpy(),
+            "nationwide": recent["nationwide"].to_numpy(),
+            "fda_severity": recent["severity"].to_numpy(),
+        }
+    )
+    if event_predictions is not None and len(event_predictions):
+        preds = event_predictions.set_index("doc_id")
+        events["event_type"] = events["doc_id"].map(preds["event_pred"])
+        events["confidence"] = events["doc_id"].map(preds["event_conf"])
+        events["model"] = str(event_predictions.attrs.get("model", "nlp-champion"))
+    missing = events.get("event_type", pd.Series(index=events.index, dtype=object)).isna()
+    if missing.any():
+        rules = events.loc[missing, "reason"].map(weak_label)
+        events.loc[missing, "event_type"] = rules.map(lambda w: w.label)
+        events.loc[missing, "confidence"] = rules.map(
+            lambda w: 0.3 if not w.fired else (0.6 if w.conflict else 0.9)
+        )
+        events.loc[missing, "model"] = "rules-v1"
+    events.sort_values("report_date", ascending=False).to_parquet(
+        out_dir / "events.parquet", index=False
+    )
