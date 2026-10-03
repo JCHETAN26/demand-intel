@@ -84,8 +84,13 @@ class LightGBMForecaster:
         o = ctx.origin
         fit_days = np.arange(o - CALIB_DAYS - self.train_days + 1, o - CALIB_DAYS + 1)
         cal_days = np.arange(o - CALIB_DAYS + 1, o + 1)
-        tr = build_features(ctx.data, ctx.rows, fit_days, hb, self.families, ctx.weather, True)
-        va = build_features(ctx.data, ctx.rows, cal_days, hb, self.families, ctx.weather, True)
+        text = ctx.extras.get("text")
+        tr = build_features(
+            ctx.data, ctx.rows, fit_days, hb, self.families, ctx.weather, True, text
+        )
+        va = build_features(
+            ctx.data, ctx.rows, cal_days, hb, self.families, ctx.weather, True, text
+        )
         assert tr.y is not None and va.y is not None
         t0 = time.perf_counter()
         dtrain = lgb.Dataset(tr.X[tr.eligible], tr.y[tr.eligible], free_raw_data=True)
@@ -117,7 +122,15 @@ class LightGBMForecaster:
         for lo, hi in BUCKETS:
             booster, qmap = self._fit_bucket(ctx, hi)
             days = np.arange(ctx.origin + lo, ctx.origin + hi + 1)
-            ff = build_features(ctx.data, ctx.rows, days, hi, self.families, ctx.weather)
+            ff = build_features(
+                ctx.data,
+                ctx.rows,
+                days,
+                hi,
+                self.families,
+                ctx.weather,
+                text=ctx.extras.get("text"),
+            )
             pred = np.asarray(booster.predict(ff.X, num_iteration=booster.best_iteration))
             on_sale = ~np.isnan(np.asarray(ctx.data.prices)[ctx.rows][:, days - 1]).ravel()
             pred = np.where(on_sale, np.clip(pred, 0, None), 0.0)

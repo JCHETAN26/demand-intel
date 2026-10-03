@@ -19,8 +19,19 @@ import numpy as np
 import pandas as pd
 
 from demand_intel.data import M5Data, first_sale_index
+from demand_intel.pipelines.features.text_signals import TextSignals, signal_features
 
-FAMILIES = ("sales", "calendar", "snap", "price", "hierarchy", "weather", "weather_oracle")
+FAMILIES = (
+    "sales",
+    "calendar",
+    "snap",
+    "price",
+    "hierarchy",
+    "weather",
+    "weather_oracle",
+    "text_events",
+    "text_embed",
+)
 DEFAULT_FAMILIES = ("sales", "calendar", "snap", "price", "hierarchy")
 BUCKETS = ((1, 7), (8, 14), (15, 28))
 CATEGORICAL = ("item_id", "dept_id", "cat_id", "store_id", "state_id", "event_name", "event_type")
@@ -225,6 +236,7 @@ def build_features(
     families: Sequence[str] = DEFAULT_FAMILIES,
     weather: pd.DataFrame | None = None,
     with_target: bool = False,
+    text: TextSignals | None = None,
 ) -> FeatureFrame:
     """Features for series `rows` × target `days` with anchor offset `hb`.
 
@@ -268,6 +280,12 @@ def build_features(
             if weather is None:
                 raise ValueError(f"family {fam!r} needs the weather table")
             cols.update(_weather_features(weather, m5.calendar, series, days, hb, oracle))
+
+    for fam, kind in (("text_events", "events"), ("text_embed", "embed")):
+        if fam in families:
+            if text is None:
+                raise ValueError(f"family {fam!r} needs text signals")
+            cols.update(signal_features(text, series, days, hb, kind))
 
     frame = pd.DataFrame(
         {

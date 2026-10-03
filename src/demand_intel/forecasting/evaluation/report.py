@@ -27,6 +27,23 @@ ABLATION = (
     "lgbm_abl5_hierarchy",
     "lgbm_abl6_weather",
 )
+# Multimodal arms (spec §6.2) as runs on the panel. D includes hierarchy identifiers, as do
+# E and F, so the text comparisons differ only in the text family.
+MULTIMODAL_ARMS = {
+    "A_history": "lgbm_abl1_sales",
+    "B_calendar": "lgbm_abl3_snap",
+    "C_price": "lgbm_abl4_price",
+    "D_weather": "lgbm_abl6_weather",
+    "D*_weather_ORACLE": "lgbm_weather_oracle",
+    "E_text_embeddings": "lgbm_mm_E_text_embed",
+    "F_event_signals": "lgbm_mm_F_text_events",
+}
+MULTIMODAL_TESTS = (
+    ("E_text_embeddings", "D_weather"),
+    ("F_event_signals", "D_weather"),
+    ("F_event_signals", "E_text_embeddings"),
+)
+
 # (model A, model B, population): A is the more complex model; a negative difference
 # with a CI below 0 means A improves on B.
 PLANNED_TESTS: tuple[tuple[str, str, str], ...] = (
@@ -82,6 +99,78 @@ def ablation_table(summary: pd.DataFrame) -> pd.DataFrame:
     return abl
 
 
+def multimodal_table(results: pd.DataFrame, forecast_dir: Path) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+    folds = [f"fold_{i}" for i in range(1, 6)]
+    for arm, model in MULTIMODAL_ARMS.items():
+        r = results[
+            (results["model"] == model)
+            & (results["population"] == "panel")
+            & (results["window"] == 28)
+        ]
+        if r.empty:
+            rows.append({"arm": arm, "model": model, "status": "not run"})
+            continue
+        overall = r[r["slice"] == "all"]
+        foods = r[(r["slice"] == "cat_id") & (r["value"] == "FOODS")]
+        rows.append(
+            {
+                "arm": arm,
+                "model": model,
+                "status": "run",
+                "backtest_wrmsse": overall[overall["fold"].isin(folds)]["wrmsse"].mean(),
+                "test_wrmsse": overall[overall["fold"] == "test"]["wrmsse"].mean(),
+                "backtest_wape": overall[overall["fold"].isin(folds)]["wape"].mean(),
+                "backtest_bias": overall[overall["fold"].isin(folds)]["bias"].mean(),
+                "foods_backtest_wrmsse_l12": foods[foods["fold"].isin(folds)]["wrmsse_l12"].mean(),
+                "foods_backtest_wape": foods[foods["fold"].isin(folds)]["wape"].mean(),
+            }
+        )
+    table = pd.DataFrame(rows)
+    have = set(available_models(forecast_dir, "panel")) if forecast_dir.exists() else set()
+    for a, b in MULTIMODAL_TESTS:
+        ma, mb = MULTIMODAL_ARMS[a], MULTIMODAL_ARMS[b]
+        if {ma, mb} <= have:
+            pt = paired_test(forecast_dir, ma, mb, "panel")
+            fa = results[
+                (results["model"] == ma)
+                & (results["slice"] == "cat_id")
+                & (results["value"] == "FOODS")
+                & (results["window"] == 28)
+                & results["fold"].isin(folds)
+            ].set_index("fold")["wrmsse_l12"]
+            fb = results[
+                (results["model"] == mb)
+                & (results["slice"] == "cat_id")
+                & (results["value"] == "FOODS")
+                & (results["window"] == 28)
+                & results["fold"].isin(folds)
+            ].set_index("fold")["wrmsse_l12"]
+            foods_wins = int((fa < fb.reindex(fa.index)).sum())
+            consistent = pt.improvement and pt.fold_wins >= 4
+            table = pd.concat(
+                [
+                    table,
+                    pd.DataFrame(
+                        [
+                            {
+                                "arm": f"{a} vs {b}",
+                                "status": "comparison",
+                                "diff": pt.diff,
+                                "ci_low": pt.ci_low,
+                                "ci_high": pt.ci_high,
+                                "fold_wins": pt.fold_wins,
+                                "foods_fold_wins": foods_wins,
+                                "consistent_improvement": consistent,
+                            }
+                        ]
+                    ),
+                ],
+                ignore_index=True,
+            )
+    return table
+
+
 def build_forecast_artifacts(eval_dir: Path, forecast_dir: Path) -> dict[str, Path]:
     results = load_results(eval_dir / "backtest")
     if results.empty:
@@ -107,6 +196,7 @@ def build_forecast_artifacts(eval_dir: Path, forecast_dir: Path) -> dict[str, Pa
             write(name, detail)
     write("forecast_ablation.csv", ablation_table(summary))
     write("probabilistic_calibration.csv", calibration_table(results))
+    write("multimodal_ablation.csv", multimodal_table(results, forecast_dir))
 
     tests = []
     for a, b, pop in PLANNED_TESTS:

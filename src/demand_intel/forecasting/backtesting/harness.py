@@ -194,6 +194,7 @@ def run_backtest(
     stockout_runs: pd.DataFrame | None = None,
     weather: pd.DataFrame | None = None,
     truth_cache: TruthCache | None = None,
+    extras: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     """Run `forecaster` over `folds` for the series `rows` and write results."""
     cache = truth_cache or TruthCache(m5)
@@ -208,6 +209,7 @@ def run_backtest(
             weather=weather,
             attrs=attrs.reset_index(drop=True),
             population=population,
+            extras=dict(extras or {}),
         )
         t0 = time.perf_counter()
         fc = forecaster.forecast(ctx)

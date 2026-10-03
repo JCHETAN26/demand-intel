@@ -96,6 +96,12 @@ def backtest(
     attrs = profile.iloc[rows][list(SLICES)]
     weather_path = settings.validated_dir / "weather" / "weather_state_daily.parquet"
     weather = pd.read_parquet(weather_path) if weather_path.exists() else None
+    extras = {}
+    signals_path = settings.data_dir / "nlp" / "text_signals.npz"
+    if signals_path.exists():
+        from demand_intel.pipelines.features.text_signals import TextSignals
+
+        extras["text"] = TextSignals.load(signals_path)
     cache = TruthCache(m5)
     for name in models:
         res = run_backtest(
@@ -110,6 +116,7 @@ def backtest(
             stockout_runs=runs,
             weather=weather,
             truth_cache=cache,
+            extras=extras,
         )
         head = res[(res["slice"] == "all") & (res["window"] == 28)]
         for r in head.itertuples():
@@ -501,6 +508,41 @@ def nlp_train(
     new.to_csv(path, index=False)
     show = new[new["split"] == "test"][["model", "task", "truth", "macro_f1", "accuracy", "ece"]]
     typer.echo(show.round(3).to_string(index=False))
+
+
+@app.command("nlp-signals")
+def nlp_signals(
+    event_source: str = typer.Option("rules", help="Event types from: rules | tfidf | encoder."),
+) -> None:
+    """Build text signals (spec §4.4) for the multimodal experiment."""
+    from demand_intel.data import load_m5
+    from demand_intel.models.nlp.labeling import EVENT_TYPES, weak_label
+    from demand_intel.models.nlp.models import EmbeddingModel, EncoderModel, TfidfModel
+    from demand_intel.pipelines.features.text_signals import build_signals
+
+    m5 = load_m5(settings.validated_dir / "m5", with_prices=False)
+    docs = pd.read_parquet(settings.validated_dir / "text" / "recalls.parquet")
+    docs = docs[docs["report_date"] <= pd.Timestamp("2016-06-19")].reset_index(drop=True)
+    texts = docs["text"].tolist()
+    if event_source == "rules":
+        docs["event_type"] = docs["reason_for_recall"].map(lambda t: weak_label(t).label)
+    else:
+        nlp = pd.read_parquet(settings.data_dir / "nlp" / "dataset.parquet")
+        train = nlp[nlp["split"] == "train"]
+        if event_source == "tfidf":
+            model: Any = TfidfModel()
+            model.fit(
+                train["text"].tolist(), train["weak_label"].tolist(), train["severity"].tolist()
+            )
+        else:
+            model = EncoderModel.load(settings.data_dir / "models" / "nlp" / "n3_encoder")
+        probs, _ = model.predict_proba(texts)
+        docs["event_type"] = [EVENT_TYPES[i] for i in probs.argmax(1)]
+    emb = EmbeddingModel()._embed(texts)
+    sig = build_signals(docs, m5.calendar, emb, source=event_source)
+    out = settings.data_dir / "nlp" / "text_signals.npz"
+    sig.save(out)
+    typer.echo(f"text signals ({event_source}) for {len(docs)} reports → {out}")
 
 
 @ingest_app.command("m5")

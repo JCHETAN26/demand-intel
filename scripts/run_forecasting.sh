@@ -15,7 +15,7 @@ run() {  # run <population> <folds> <model...>
     uv run demand-intel backtest "$m" --population "$pop" --folds "$folds"
   done
 }
-steps=("${@:-baselines statistical lgbm_full lgbm_panel ablation deep weather_oracle}")
+steps=("${@:-baselines statistical lgbm_full lgbm_panel ablation deep weather_oracle multimodal}")
 for step in ${steps[@]}; do
   case $step in
     baselines) run full all naive seasonal_naive moving_average_28
@@ -28,6 +28,7 @@ for step in ${steps[@]}; do
                             lgbm_abl5_hierarchy lgbm_abl6_weather ;;
     deep) run panel all lstm tft ;;
     weather_oracle) run panel all lgbm_weather_oracle ;;
+    multimodal) run panel all lgbm_mm_E_text_embed lgbm_mm_F_text_events ;;
     *) echo "unknown step $step" >&2; exit 2 ;;
   esac
 done

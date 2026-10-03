@@ -45,6 +45,13 @@ def _lgbm() -> dict[str, Callable[[], Forecaster]]:
             "lgbm_weather_oracle", (*DEFAULT_FAMILIES, "weather_oracle")
         ),
     }
+    full = ABLATION_LADDER["lgbm_abl6_weather"]
+    out["lgbm_mm_E_text_embed"] = lambda: LightGBMForecaster(
+        "lgbm_mm_E_text_embed", (*full, "text_embed")
+    )
+    out["lgbm_mm_F_text_events"] = lambda: LightGBMForecaster(
+        "lgbm_mm_F_text_events", (*full, "text_events")
+    )
     for name, fams in ABLATION_LADDER.items():
         out[name] = lambda name=name, fams=fams: LightGBMForecaster(name, fams)  # type: ignore[misc]
     return out
