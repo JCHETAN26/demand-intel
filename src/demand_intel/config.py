@@ -20,5 +20,13 @@ class Settings(BaseSettings):
     def raw_dir(self) -> Path:
         return self.data_dir / "raw"
 
+    @property
+    def validated_dir(self) -> Path:
+        return self.data_dir / "validated"
+
+    @property
+    def quarantine_dir(self) -> Path:
+        return self.data_dir / "quarantine"
+
 
 settings = Settings()

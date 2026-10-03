@@ -13,6 +13,8 @@ dist/
 data/raw/**
 !data/raw/**/
 !data/raw/**/.gitkeep
+data/validated/
+data/quarantine/
 artifacts/**
 !artifacts/.gitkeep
 mlruns/
