@@ -117,6 +117,24 @@ def backtest(
             )
 
 
+@app.command("forecast-batch")
+def forecast_batch() -> None:
+    """Retrain the champion on all history and write the serving bundle (data/serving)."""
+    from demand_intel.data import load_m5
+    from demand_intel.pipelines.inference.serving import build_bundle
+
+    m5 = load_m5(settings.validated_dir / "m5")
+    profile = pd.read_parquet(settings.validated_dir / "m5" / "series_profile.parquet")
+    info = build_bundle(
+        m5,
+        settings.data_dir / "serving",
+        settings.data_dir / "models" / "lgbm",
+        settings.evaluation_dir,
+        profile,
+    )
+    typer.echo(f"bundle: {info.path} (origin d_{info.origin}, {info.series} series, {info.model})")
+
+
 @app.command()
 def report() -> None:
     """Assemble the forecasting artifacts and planned paired tests (spec §10)."""
