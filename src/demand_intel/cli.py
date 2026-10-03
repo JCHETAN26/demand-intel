@@ -118,6 +118,16 @@ def backtest(
 
 
 @app.command()
+def report() -> None:
+    """Assemble the forecasting artifacts and planned paired tests (spec §10)."""
+    from demand_intel.forecasting.evaluation.report import build_forecast_artifacts
+
+    written = build_forecast_artifacts(settings.evaluation_dir, settings.data_dir / "forecasts")
+    for name in written:
+        typer.echo(f"wrote evaluation/{name}")
+
+
+@app.command()
 def inventory(
     model: str = typer.Option(..., help="Forecast model whose backtest forecasts drive P2/P3."),
     population: str = typer.Option("panel", help="Series to simulate (spec §8.1: panel)."),

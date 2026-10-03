@@ -88,7 +88,7 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "PTH", "RUF", "PD", "NPY"]
 ignore = ["PD010"]  # unstack() is clearer than pivot_table for grouped results
-allowed-confusables = ["×", "–", "—", "≤", "≥", "σ", "ρ"]
+allowed-confusables = ["×", "–", "—", "−", "≤", "≥", "σ", "ρ"]
 
 [tool.ruff.lint.per-file-ignores]
 # long regex alternations read better unwrapped
