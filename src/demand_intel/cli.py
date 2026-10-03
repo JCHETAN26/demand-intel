@@ -127,10 +127,24 @@ def backtest(
 
 
 @app.command("forecast-batch")
-def forecast_batch() -> None:
+def forecast_batch(
+    model: str = typer.Option("", help="LightGBM variant to publish (default: registry champion)."),
+) -> None:
     """Retrain the champion on all history and write the serving bundle (data/serving)."""
     from demand_intel.data import load_m5
+    from demand_intel.mlops.registry.registry import load_registry
+    from demand_intel.models.lgbm.model import LightGBMForecaster
+    from demand_intel.models.registry import make
     from demand_intel.pipelines.inference.serving import build_bundle
+
+    name = (
+        model
+        or load_registry(settings.evaluation_dir / "registry.json")["tasks"]["forecast"]["champion"]
+    )
+    forecaster = make(name)
+    if not isinstance(forecaster, LightGBMForecaster):
+        typer.echo(f"{name} is not a LightGBM model; publishing lgbm instead")
+        forecaster = make("lgbm")
 
     m5 = load_m5(settings.validated_dir / "m5")
     profile = pd.read_parquet(settings.validated_dir / "m5" / "series_profile.parquet")
@@ -140,6 +154,7 @@ def forecast_batch() -> None:
         settings.data_dir / "models" / "lgbm",
         settings.evaluation_dir,
         profile,
+        forecaster=forecaster,  # type: ignore[arg-type]
     )
     typer.echo(f"bundle: {info.path} (origin d_{info.origin}, {info.series} series, {info.model})")
     _write_bundle_extras(info.path)
