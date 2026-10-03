@@ -30,6 +30,7 @@ from demand_intel.pipelines.features.build import BUCKETS, DEFAULT_FAMILIES, bui
 
 CALIB_DAYS = 28
 N_BINS = 50
+RATIO_FROM = 3.0  # units/day: bins at or above this use ratio quantiles
 
 DEFAULT_PARAMS: dict[str, Any] = {
     "objective": "tweedie",
@@ -50,23 +51,43 @@ DEFAULT_PARAMS: dict[str, Any] = {
 
 @dataclass
 class QuantileMap:
-    edges: np.ndarray  # (N_BINS - 1,) inner bin edges on the predicted mean
-    table: np.ndarray  # (N_BINS, len(QUANTILES)) empirical quantiles of y per bin
+    """Empirical conditional quantiles of demand given the predicted mean.
+
+    Predictions are binned (equal-count bins). Low-volume bins (mean prediction below
+    RATIO_FROM units) store the empirical quantiles of y directly, which keeps them exact
+    for small counts. Higher bins store quantiles of the ratio y / prediction and are
+    multiplied by the prediction, so quantiles scale with volume: an item forecast at 60
+    units gets bands around 60, not the bin's typical item's.
+    """
+
+    edges: np.ndarray  # (n_bins - 1,) inner bin edges on the predicted mean
+    table: np.ndarray  # (n_bins, Q): absolute quantiles, or ratio quantiles where ratio[b]
+    ratio: np.ndarray  # (n_bins,) bool
 
     @classmethod
     def fit(cls, pred: np.ndarray, y: np.ndarray, n_bins: int = N_BINS) -> "QuantileMap":
         edges = np.unique(np.quantile(pred, np.linspace(0, 1, n_bins + 1)[1:-1]))
         b = np.searchsorted(edges, pred, side="right")
-        table = np.zeros((len(edges) + 1, len(QUANTILES)))
-        for k in range(len(edges) + 1):
-            sel = y[b == k]
-            table[k] = np.quantile(sel, QUANTILES) if len(sel) else table[max(k - 1, 0)]
+        k_bins = len(edges) + 1
+        table = np.zeros((k_bins, len(QUANTILES)))
+        ratio = np.zeros(k_bins, dtype=bool)
+        for k in range(k_bins):
+            sel = b == k
+            if not sel.any():
+                table[k], ratio[k] = table[max(k - 1, 0)], ratio[max(k - 1, 0)]
+                continue
+            if pred[sel].mean() >= RATIO_FROM:
+                ratio[k] = True
+                table[k] = np.quantile(y[sel] / np.maximum(pred[sel], 1e-9), QUANTILES)
+            else:
+                table[k] = np.quantile(y[sel], QUANTILES)
         table = np.maximum.accumulate(table, axis=1)  # enforce ordering across quantiles
-        return cls(edges=edges, table=table)
+        return cls(edges=edges, table=table, ratio=ratio)
 
     def apply(self, pred: np.ndarray) -> dict[float, np.ndarray]:
         b = np.searchsorted(self.edges, pred, side="right")
-        return {q: self.table[b, j] for j, q in enumerate(QUANTILES)}
+        scale = np.where(self.ratio[b], pred, 1.0)
+        return {q: self.table[b, j] * scale for j, q in enumerate(QUANTILES)}
 
 
 @dataclass
@@ -172,7 +193,12 @@ class LightGBMForecaster:
                 booster.save_model(
                     str(d / f"bucket_{hi}.txt"), num_iteration=booster.best_iteration
                 )
-                np.savez(d / f"bucket_{hi}_qmap.npz", edges=qmap.edges, table=qmap.table)
+                np.savez(
+                    d / f"bucket_{hi}_qmap.npz",
+                    edges=qmap.edges,
+                    table=qmap.table,
+                    ratio=qmap.ratio,
+                )
                 meta: dict[str, Any] = {"families": list(self.families), "params": self.params}
                 meta_path = d / "meta.json"
                 if meta_path.exists():

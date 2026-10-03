@@ -69,7 +69,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Demand Intelligence API", version="1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("DI_CORS_ORIGINS", "http://localhost:3000").split(","),
+    allow_origins=os.environ.get(
+        "DI_CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(","),
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )

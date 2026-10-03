@@ -111,3 +111,14 @@ def test_bias_correction_moves_mean_toward_calibration_window() -> None:
     np.testing.assert_allclose(
         corrected.quantiles[0.5], plain.quantiles[0.5]
     )  # quantiles untouched
+
+
+def test_quantile_map_scales_with_volume_beyond_the_top_bin() -> None:
+    rng = np.random.default_rng(1)
+    mu = np.concatenate([rng.uniform(0.1, 3, 45_000), rng.uniform(5, 100, 5_000)])
+    y = rng.poisson(mu).astype(float)
+    qmap = QuantileMap.fit(mu, y)
+    q = qmap.apply(np.array([60.0, 90.0]))
+    # bands bracket the forecast for a high-volume item (the bug: P90 far below the mean)
+    assert q[0.1][0] < 60 < q[0.9][0] and q[0.9][1] > q[0.9][0]
+    assert 0.8 < q[0.5][0] / 60 < 1.2
