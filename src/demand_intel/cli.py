@@ -293,6 +293,7 @@ def report() -> None:
 def inventory(
     model: str = typer.Option(..., help="Forecast model whose backtest forecasts drive P2/P3."),
     population: str = typer.Option("panel", help="Series to simulate (spec §8.1: panel)."),
+    forecast_population: str = typer.Option("full", help="Backtest whose forecasts to use."),
 ) -> None:
     """Historical inventory replay of policies P0-P3 and the oracle (spec §8)."""
     from demand_intel.data import load_m5
@@ -300,7 +301,9 @@ def inventory(
 
     m5 = load_m5(settings.validated_dir / "m5")
     rows = _population_rows(population, m5.series)
-    metrics, diffs, calibration = run_replay(m5, rows, model, settings.data_dir / "forecasts")
+    metrics, diffs, calibration = run_replay(
+        m5, rows, model, settings.data_dir / "forecasts", source=forecast_population
+    )
     out = settings.evaluation_dir
     metrics.insert(0, "model", model)
     metrics.to_csv(out / "inventory_simulation.csv", index=False)

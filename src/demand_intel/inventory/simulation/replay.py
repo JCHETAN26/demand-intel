@@ -47,9 +47,12 @@ class FoldForecast:
     quantiles: np.ndarray  # (n, H, Q)
 
 
-def load_forecast(forecast_dir: Path, model: str, fold: str, rows: np.ndarray) -> FoldForecast:
-    """Load a backtest forecast and select `rows` (FULL files contain every series)."""
-    for population in ("panel", "full"):
+def load_forecast(
+    forecast_dir: Path, model: str, fold: str, rows: np.ndarray, source: str = "full"
+) -> FoldForecast:
+    """Load a backtest forecast from `source` population ("full" files cover every series)
+    and select `rows`; falls back to the other population if needed."""
+    for population in (source, "panel" if source == "full" else "full"):
         path = forecast_dir / model / population / f"{fold}.npz"
         if path.exists():
             z = np.load(path)
@@ -69,14 +72,20 @@ def run_replay(
     forecast_dir: Path,
     scenarios: Sequence[Scenario] = (DEFAULT, *SENSITIVITIES),
     n_boot: int = 1000,
+    source: str = "full",
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
     """Returns (per window × scenario × policy metrics, paired cost differences, calibration)."""
     assert m5.prices is not None
-    cal = load_forecast(forecast_dir, model, CALIBRATION.name, rows)
+    cal = load_forecast(forecast_dir, model, CALIBRATION.name, rows, source)
     o = CALIBRATION.origin
     cal_actual = m5.sales[rows, o : o + HORIZON].astype(float)
     residual = [cal_actual - cal.point]
-    calibration: dict[str, Any] = {"model": model, "calibration_fold": CALIBRATION.name, "rho": {}}
+    calibration: dict[str, Any] = {
+        "model": model,
+        "forecast_population": source,
+        "calibration_fold": CALIBRATION.name,
+        "rho": {},
+    }
 
     metrics: list[dict[str, Any]] = []
     per_series: dict[tuple[str, str], np.ndarray] = {}
@@ -92,7 +101,7 @@ def run_replay(
         history = m5.sales[rows, :o].astype(float)
         price = np.nanmean(m5.prices[rows, o : o + HORIZON], axis=1)
         price = np.nan_to_num(price, nan=float(np.nanmedian(price)))
-        fc = load_forecast(forecast_dir, model, fold.name, rows)
+        fc = load_forecast(forecast_dir, model, fold.name, rows, source)
         sigma = np.concatenate(resid_hist, axis=1).std(axis=1)  # earlier folds only
         for sc in scenarios:
             rho = calibration["rho"][(sc.lead_time, sc.service_level)]["rho"]
