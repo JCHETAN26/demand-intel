@@ -10,14 +10,14 @@ function RiskTable({ kind }: { kind: "stockout" | "excess" }) {
   return (
     <div className="tablewrap">
       <table>
-        <thead><tr><th>SKU</th><th>Store</th><th className="num">Stock</th><th className="num">{kind === "stockout" ? "8-day P90" : "28-day P95"}</th></tr></thead>
+        <thead><tr><th>SKU</th><th>Store</th><th className="num">Stock</th><th className="num">8-day P95 need</th></tr></thead>
         <tbody>
           {data.items.map((r) => (
             <tr key={`${r.item_id}-${r.store_id}`}>
               <td><Link href={`/forecast?item=${r.item_id}&store=${r.store_id}`}>{r.item_id}</Link></td>
               <td>{r.store_id}</td>
               <td className="num">{fmt(r.scenario_stock, 0)}</td>
-              <td className="num">{fmt(kind === "stockout" ? r.lead_time_p90 : r.demand28_p95, 0)}</td>
+              <td className="num">{fmt(r.lead_time_p95, 0)}</td>
             </tr>
           ))}
         </tbody>
@@ -41,8 +41,8 @@ export default function Overview() {
         <section className="tiles" aria-label="Headline figures">
           <div className="tile"><span className="k">Forecast horizon</span><span className="v">{s.horizon_days} days</span></div>
           <div className="tile"><span className="k">SKUs monitored</span><span className="v">{s.skus_monitored.toLocaleString()}</span><span className="s">item × store series</span></div>
-          <div className="tile"><span className="k">Stockout risk</span><span className="v">{s.stockout_risk.toLocaleString()}</span><span className="s">series, scenario stock</span></div>
-          <div className="tile"><span className="k">Excess inventory risk</span><span className="v">{s.excess_inventory_risk.toLocaleString()}</span><span className="s">series, scenario stock</span></div>
+          <div className="tile"><span className="k">Stockout risk</span><span className="v">{s.stockout_risk.toLocaleString()}</span><span className="s">&gt;10% stockout chance under a simple reorder rule</span></div>
+          <div className="tile"><span className="k">Excess inventory risk</span><span className="v">{s.excess_inventory_risk.toLocaleString()}</span><span className="s">simple-rule stock over 1.5× the P95 need</span></div>
           <div className="tile"><span className="k">Forecast WAPE</span><span className="v">{pct(s.evaluation.test_wape)}</span><span className="s">test window, 28 days</span></div>
           <div className="tile"><span className="k">Forecast bias</span><span className="v">{pct(s.evaluation.test_bias)}</span><span className="s">negative = under-forecast</span></div>
           <div className="tile"><span className="k">WRMSSE</span><span className="v">{fmt(s.evaluation.test_wrmsse, 3)}</span><span className="s">M5 metric, test window</span></div>

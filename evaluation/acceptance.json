@@ -1,0 +1,52 @@
+[
+  {
+    "question": "Forecasting: does the model beat seasonal naive?",
+    "verdict": "yes",
+    "evidence": "\u0394 level-12 WRMSSE -0.3017 (95% CI -0.3120 to -0.2927), 5/5 folds won (all 30,490 series)"
+  },
+  {
+    "question": "ML: does LightGBM improve over statistical baselines?",
+    "verdict": "no",
+    "evidence": "vs stat_class_selected (full): \u0394 level-12 WRMSSE -0.0459 (95% CI -0.0496 to -0.0422), 5/5 folds won; vs ets (panel): \u0394 level-12 WRMSSE -0.0115 (95% CI -0.0275 to +0.0101), 3/5 folds won; vs arima (panel): \u0394 level-12 WRMSSE -0.0194 (95% CI -0.0349 to +0.0020), 4/5 folds won"
+  },
+  {
+    "question": "Deep learning: do LSTM/TFT justify their complexity?",
+    "verdict": "no",
+    "evidence": "lstm vs LightGBM: \u0394 level-12 WRMSSE +0.0066 (95% CI -0.0116 to +0.0192), 2/5 folds won; tft vs LightGBM: \u0394 level-12 WRMSSE -0.0091 (95% CI -0.0332 to +0.0086), 4/5 folds won; seconds per fold: lgbm 63, lstm 142, tft 924"
+  },
+  {
+    "question": "Uncertainty: are P10/P90 calibrated?",
+    "verdict": "yes",
+    "evidence": "lgbm: P10 and P90 inside the discrete calibration bracket on 5/5 backtest folds"
+  },
+  {
+    "question": "NLP: does the fine-tuned model beat simple baselines?",
+    "verdict": "pending",
+    "evidence": "human-validated test labels not available yet; weak-label agreement is not test truth"
+  },
+  {
+    "question": "Multimodal: do NLP-derived signals improve forecasting?",
+    "verdict": "no",
+    "evidence": "E_text_embeddings vs D_weather: \u0394 +0.0038 (CI +0.0009 to +0.0072), 0/5 folds; F_event_signals vs D_weather: \u0394 +0.0006 (CI -0.0021 to +0.0037), 2/5 folds"
+  },
+  {
+    "question": "Inventory: does better forecasting reduce stockouts/excess cost in simulation?",
+    "verdict": "yes",
+    "evidence": "P3 vs P1 at default: -45.9% cost (CI -77,730 to -39,567); lower in 4/4 stockout-cost scenarios"
+  },
+  {
+    "question": "MLOps: can the system train, evaluate, register and deploy reproducibly?",
+    "verdict": "yes",
+    "evidence": "1 registry decisions with gate reports; champion seasonal_naive; DAGs import cleanly; `make evaluate` regenerates every artifact"
+  },
+  {
+    "question": "Production: can it serve forecasts within acceptable latency?",
+    "verdict": "pending",
+    "evidence": "benchmark not run"
+  },
+  {
+    "question": "Monitoring: can we detect degraded data/model/system behaviour?",
+    "verdict": "yes",
+    "evidence": "forecast checks alert, data drift ok, NLP alert; Prometheus alert rules and CloudWatch alarms cover latency, errors and availability"
+  }
+]

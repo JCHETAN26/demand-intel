@@ -43,7 +43,7 @@ export type SeriesDetail = {
 };
 
 export type RiskRow = { item_id: string; store_id: string; cat_id: string; scenario_stock: number;
-  lead_time_p90: number; demand28_p95: number; gap: number };
+  lead_time_p95: number; gap: number };
 
 export type EventRow = { doc_id: string; report_date: string; reason: string; product: string;
   distribution: string; states: string[]; nationwide: boolean; fda_severity: string;

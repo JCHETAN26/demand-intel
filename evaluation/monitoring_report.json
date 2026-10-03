@@ -1,0 +1,385 @@
+{
+  "model": "seasonal_naive",
+  "window": "test",
+  "forecast": {
+    "status": "alert",
+    "checks": [
+      {
+        "name": "wape:cat_id=FOODS",
+        "value": -0.07297450312618381,
+        "status": "ok",
+        "detail": "WAPE 0.787 vs backtest 0.849"
+      },
+      {
+        "name": "bias:cat_id=FOODS",
+        "value": -0.09027877879320784,
+        "status": "warn",
+        "detail": ""
+      },
+      {
+        "name": "wape:cat_id=HOBBIES",
+        "value": -0.03719673122322653,
+        "status": "ok",
+        "detail": "WAPE 1.186 vs backtest 1.232"
+      },
+      {
+        "name": "bias:cat_id=HOBBIES",
+        "value": -0.05089076094462091,
+        "status": "warn",
+        "detail": ""
+      },
+      {
+        "name": "wape:cat_id=HOUSEHOLD",
+        "value": -0.036396557472720414,
+        "status": "ok",
+        "detail": "WAPE 0.951 vs backtest 0.987"
+      },
+      {
+        "name": "bias:cat_id=HOUSEHOLD",
+        "value": -0.03385787876649495,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "wape:store_id=CA_1",
+        "value": -0.04273270869682044,
+        "status": "ok",
+        "detail": "WAPE 0.868 vs backtest 0.907"
+      },
+      {
+        "name": "bias:store_id=CA_1",
+        "value": -0.05556881938641518,
+        "status": "warn",
+        "detail": ""
+      },
+      {
+        "name": "wape:store_id=CA_2",
+        "value": -0.08308655706465884,
+        "status": "ok",
+        "detail": "WAPE 0.876 vs backtest 0.955"
+      },
+      {
+        "name": "bias:store_id=CA_2",
+        "value": -0.07077941619018958,
+        "status": "warn",
+        "detail": ""
+      },
+      {
+        "name": "wape:store_id=CA_3",
+        "value": -0.04279927675251882,
+        "status": "ok",
+        "detail": "WAPE 0.803 vs backtest 0.839"
+      },
+      {
+        "name": "bias:store_id=CA_3",
+        "value": -0.02447536496350365,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "wape:store_id=CA_4",
+        "value": -0.039950741876093265,
+        "status": "ok",
+        "detail": "WAPE 1.045 vs backtest 1.089"
+      },
+      {
+        "name": "bias:store_id=CA_4",
+        "value": -0.021177306043774886,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "wape:store_id=TX_1",
+        "value": -0.06531486546564436,
+        "status": "ok",
+        "detail": "WAPE 0.891 vs backtest 0.953"
+      },
+      {
+        "name": "bias:store_id=TX_1",
+        "value": -0.05264992668997549,
+        "status": "warn",
+        "detail": ""
+      },
+      {
+        "name": "wape:store_id=TX_2",
+        "value": -0.05435432341030322,
+        "status": "ok",
+        "detail": "WAPE 0.855 vs backtest 0.904"
+      },
+      {
+        "name": "bias:store_id=TX_2",
+        "value": -0.07876242863835915,
+        "status": "warn",
+        "detail": ""
+      },
+      {
+        "name": "wape:store_id=TX_3",
+        "value": -0.048717955788104006,
+        "status": "ok",
+        "detail": "WAPE 0.862 vs backtest 0.906"
+      },
+      {
+        "name": "bias:store_id=TX_3",
+        "value": -0.12491210016293629,
+        "status": "alert",
+        "detail": ""
+      },
+      {
+        "name": "wape:store_id=WI_1",
+        "value": -0.07335187778477936,
+        "status": "ok",
+        "detail": "WAPE 0.895 vs backtest 0.966"
+      },
+      {
+        "name": "bias:store_id=WI_1",
+        "value": -0.05702394080609014,
+        "status": "warn",
+        "detail": ""
+      },
+      {
+        "name": "wape:store_id=WI_2",
+        "value": -0.10839063732366916,
+        "status": "ok",
+        "detail": "WAPE 0.798 vs backtest 0.895"
+      },
+      {
+        "name": "bias:store_id=WI_2",
+        "value": -0.1448797215150413,
+        "status": "alert",
+        "detail": ""
+      },
+      {
+        "name": "wape:store_id=WI_3",
+        "value": -0.06402540723459105,
+        "status": "ok",
+        "detail": "WAPE 0.841 vs backtest 0.899"
+      },
+      {
+        "name": "bias:store_id=WI_3",
+        "value": -0.09001089087344805,
+        "status": "warn",
+        "detail": ""
+      }
+    ]
+  },
+  "data": {
+    "status": "ok",
+    "checks": [
+      {
+        "name": "psi:nonzero_share_28",
+        "value": 0.03337198990685073,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:days_since_sale",
+        "value": 0.03302565019847408,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:mean_28",
+        "value": 0.03189305868207736,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:std_28",
+        "value": 0.030579722494382892,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:max_28",
+        "value": 0.03014679488080028,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:mean_14",
+        "value": 0.0250535286979903,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:mean_56",
+        "value": 0.022173595321326213,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:std_7",
+        "value": 0.021726761334610708,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:momentum_7_28",
+        "value": 0.021624622040611663,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:mean_7",
+        "value": 0.02102932188058275,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:accel_7",
+        "value": 0.01746065509366253,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:nonzero_share_112",
+        "value": 0.017443059665706816,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:mean_112",
+        "value": 0.01550572276795305,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:slope_14",
+        "value": 0.015056419978578442,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_sameday_3w",
+        "value": 0.008700251882138743,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_8",
+        "value": 0.007196860318516441,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_7",
+        "value": 0.007039300768385534,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_sameday_1w",
+        "value": 0.007039300768385534,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_9",
+        "value": 0.0060234614530729836,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_12",
+        "value": 0.005894221120862899,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_56",
+        "value": 0.005725449280359585,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_11",
+        "value": 0.005555062970342243,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_10",
+        "value": 0.005290717278486773,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_sameday_2w",
+        "value": 0.005288872672126462,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_28",
+        "value": 0.005275369979112089,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_sameday_4w",
+        "value": 0.005275369979112089,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:lag_13",
+        "value": 0.005082729638183016,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:price_vs_dept_store",
+        "value": 0.0027235529533301116,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:price",
+        "value": 0.00044221646520206453,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:price_vs_mean_8w",
+        "value": 0.0004273916525947943,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:price_change_1w",
+        "value": 0.00032502732973019327,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:min_28",
+        "value": 0.0,
+        "status": "ok",
+        "detail": ""
+      },
+      {
+        "name": "psi:discount_proxy",
+        "value": 0.0,
+        "status": "ok",
+        "detail": ""
+      }
+    ]
+  },
+  "nlp": {
+    "status": "alert",
+    "checks": [
+      {
+        "name": "nlp:event_mix_js",
+        "value": 0.23996216291132574,
+        "status": "alert",
+        "detail": "Jensen-Shannon divergence (bits) vs training label mix"
+      },
+      {
+        "name": "nlp:schema_failures",
+        "value": 0.0,
+        "status": "ok",
+        "detail": ""
+      }
+    ]
+  }
+}

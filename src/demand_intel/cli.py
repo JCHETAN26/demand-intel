@@ -173,6 +173,41 @@ def _write_bundle_extras(bundle: Path) -> None:
     write_extras(bundle, settings.evaluation_dir, recalls, preds, summary["origin_date"])
 
 
+@app.command("bundle-risk")
+def bundle_risk() -> None:
+    """Recompute the risk table of an existing bundle (no retraining)."""
+    import numpy as np
+
+    from demand_intel.data import load_m5
+    from demand_intel.forecasting.evaluation.metrics import QCOLS
+    from demand_intel.pipelines.inference.serving import (
+        EXCESS_RATIO,
+        RISK_DEFINITION,
+        RISK_LEAD_TIME,
+        calibrated_rho,
+        compute_risk,
+    )
+
+    bundle = settings.data_dir / "serving"
+    m5 = load_m5(settings.validated_dir / "m5", with_prices=False)
+    fc = pd.read_parquet(bundle / "forecast.parquet").sort_values(["series", "d"])
+    n = int(fc["series"].max()) + 1
+    qarr = np.stack([fc[c].to_numpy() for c in QCOLS], axis=-1).reshape(n, -1, len(QCOLS))
+    rho = calibrated_rho(settings.evaluation_dir)
+    origin = m5.n_days
+    risk = compute_risk(qarr, m5.sales[:, origin - 28 : origin], rho)
+    risk.to_parquet(bundle / "risk.parquet", index=False)
+    summary = json.loads((bundle / "summary.json").read_text())
+    summary["risk"] = {
+        "definition": RISK_DEFINITION.format(k=RISK_LEAD_TIME + 1, r=EXCESS_RATIO, rho=rho),
+        "rho": rho,
+    }
+    (bundle / "summary.json").write_text(json.dumps(summary, indent=2))
+    typer.echo(
+        f"stockout risk {int(risk['stockout_risk'].sum())}, excess {int(risk['excess_risk'].sum())}"
+    )
+
+
 @app.command("bundle-extras")
 def bundle_extras() -> None:
     """Refresh the Model Lab payload and recent events in the serving bundle."""

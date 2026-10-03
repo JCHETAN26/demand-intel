@@ -274,17 +274,16 @@ def risk(kind: Literal["stockout", "excess"] = "stockout", limit: int = 50) -> d
     s = _store()
     r = s.risk.join(s.series[["item_id", "store_id", "cat_id"]], on="series")
     if kind == "stockout":
-        r = r[r["stockout_risk"]].assign(gap=lambda x: x["lead_time_p90"] - x["scenario_stock"])
+        r = r[r["stockout_risk"]].assign(gap=lambda x: x["lead_time_p95"] - x["scenario_stock"])
     else:
-        r = r[r["excess_risk"]].assign(gap=lambda x: x["scenario_stock"] - x["demand28_p95"])
+        r = r[r["excess_risk"]].assign(gap=lambda x: x["scenario_stock"] - x["lead_time_p95"])
     r = r.sort_values("gap", ascending=False).head(min(limit, 500))
     cols = [
         "item_id",
         "store_id",
         "cat_id",
         "scenario_stock",
-        "lead_time_p90",
-        "demand28_p95",
+        "lead_time_p95",
         "gap",
     ]
     return {"kind": kind, "items": r[cols].round(2).to_dict("records")}

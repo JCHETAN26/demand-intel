@@ -94,21 +94,35 @@ def answer_all(ev: Path) -> list[Verdict]:
         add("Deep learning: do LSTM/TFT justify their complexity?", "pending", "not run")
 
     cal = _csv(ev / "probabilistic_calibration.csv")
-    if not cal.empty:
-        c = cal[
-            (cal["model"] == champion)
+    served = _json(ev.parent / "data" / "serving" / "summary.json").get("model")
+    candidates = [m for m in (champion, served, "lgbm_bc", "lgbm") if m]
+    c = pd.DataFrame()
+    model_checked = ""
+    for m in candidates:
+        if cal.empty:
+            break
+        sel = cal[
+            (cal["model"] == m)
             & (cal["population"] == "full")
             & (cal["slice"] == "all")
             & cal["fold"].str.startswith("fold")
         ]
-        ok = int(c["calibrated_p10_p90"].sum()) if len(c) else 0
+        if len(sel):
+            c, model_checked = sel, m
+            break
+    if c.empty:
         add(
             "Uncertainty: are P10/P90 calibrated?",
-            "pending" if c.empty else ("yes" if ok == len(c) else "no"),
-            f"{champion}: P10 and P90 inside the discrete calibration bracket on {ok}/{len(c)} backtest folds",
+            "pending",
+            "no probabilistic model evaluated on all series",
         )
     else:
-        add("Uncertainty: are P10/P90 calibrated?", "pending", "not run")
+        ok = int(c["calibrated_p10_p90"].sum())
+        add(
+            "Uncertainty: are P10/P90 calibrated?",
+            "yes" if ok == len(c) else "no",
+            f"{model_checked}: P10 and P90 inside the discrete calibration bracket on {ok}/{len(c)} backtest folds",
+        )
 
     nlp = _csv(ev / "nlp_results.csv")
     gold = (

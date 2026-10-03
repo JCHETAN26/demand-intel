@@ -25,6 +25,11 @@ COVERAGE_WARN = (0.85, 0.95)
 COVERAGE_ALERT = (0.80, 0.97)
 JS_WARN, JS_ALERT = 0.10, 0.20
 MISSING_WARN, MISSING_ALERT = 0.005, 0.02
+# Deterministic known-future inputs (spec §2.2) shift by construction between a training
+# year and the next week; drift on them is not a data problem, so they are not scored.
+KNOWN_FUTURE_CALENDAR = frozenset(
+    {"wday", "mday", "month", "week", "year", "is_weekend", "event_2", "snap"}
+)
 
 
 @dataclass
@@ -69,7 +74,11 @@ def feature_drift(
     reference: pd.DataFrame, current: pd.DataFrame, sample: int = 200_000, seed: int = 0
 ) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
-    num = [c for c in reference.columns if pd.api.types.is_numeric_dtype(reference[c])]
+    num = [
+        c
+        for c in reference.columns
+        if pd.api.types.is_numeric_dtype(reference[c]) and c not in KNOWN_FUTURE_CALENDAR
+    ]
     ref = reference.iloc[rng.choice(len(reference), min(sample, len(reference)), replace=False)]
     cur = current.iloc[rng.choice(len(current), min(sample, len(current)), replace=False)]
     rows = []

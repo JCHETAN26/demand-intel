@@ -36,9 +36,47 @@ from demand_intel.models.lgbm.model import LightGBMForecaster
 from demand_intel.pipelines.features.build import BUCKETS, build_features
 
 HISTORY_DAYS = 182
-SCENARIO_COVER_DAYS = 7
 RISK_LEAD_TIME = 7
+RISK_SERVICE = 0.95
+STOCKOUT_LEVEL = 0.90  # flag when P(stockout) > 10%, twice the 5% target
+EXCESS_RATIO = 1.5
 DEFAULT_RHO = 0.3
+RISK_DEFINITION = (
+    "SCENARIO stock = what a simple replenishment rule would hold: the last 28 days' mean "
+    "sales over {k} days (lead time + review) plus a 95% normal safety stock. Stockout risk: "
+    "the forecast gives more than a 10% chance that {k}-day demand exceeds that stock (twice "
+    "the 5% target). Excess risk: the stock is more than {r}x the forecast's P95 need. "
+    "Quantiles of sums come from copula sample paths "
+    "(rho={rho})."
+)
+
+
+def calibrated_rho(evaluation_dir: Path) -> float:
+    path = evaluation_dir / "inventory_calibration.json"
+    if path.exists():
+        entry = json.loads(path.read_text()).get("rho", {}).get("L=7,SL=0.95")
+        if isinstance(entry, dict):
+            return float(entry["rho"])
+    return DEFAULT_RHO
+
+
+def compute_risk(qarr: np.ndarray, recent_sales: np.ndarray, rho: float) -> pd.DataFrame:
+    """Per-series risk against the simple-rule SCENARIO stock (spec §8: scenario, not data)."""
+    k = RISK_LEAD_TIME + 1
+    mean, sd = recent_sales.mean(axis=1), recent_sales.std(axis=1)
+    stock = mean * k + 1.645 * sd * np.sqrt(k)
+    need = lead_time_quantile(qarr[:, :k], rho, RISK_SERVICE, n_paths=400)
+    p90 = lead_time_quantile(qarr[:, :k], rho, STOCKOUT_LEVEL, n_paths=400, seed=1)
+    return pd.DataFrame(
+        {
+            "series": np.arange(len(stock), dtype=np.int32),
+            "scenario_stock": stock.astype(np.float32),
+            "lead_time_p90": p90.astype(np.float32),
+            "lead_time_p95": need.astype(np.float32),
+            "stockout_risk": p90 > stock + 1e-9,
+            "excess_risk": stock > EXCESS_RATIO * np.maximum(need, 1.0),
+        }
+    )
 
 
 @dataclass(frozen=True)
@@ -124,26 +162,11 @@ def build_bundle(
     )
     future_price.to_parquet(out_dir / "future_price.parquet", index=False)
 
-    rho = DEFAULT_RHO
-    calib_path = evaluation_dir / "inventory_calibration.json"
-    if calib_path.exists():
-        entry = json.loads(calib_path.read_text()).get("rho", {}).get("L=7,SL=0.95")
-        if isinstance(entry, dict):
-            rho = float(entry["rho"])
+    rho = calibrated_rho(evaluation_dir)
     qarr = np.stack([fc.quantiles[q] for q in QUANTILES], axis=-1)
-    stock = m5.sales[:, origin - 28 : origin].mean(axis=1) * SCENARIO_COVER_DAYS
-    p90_lt = lead_time_quantile(qarr[:, : RISK_LEAD_TIME + 1], rho, 0.90, n_paths=300)
-    p95_28 = lead_time_quantile(qarr, rho, 0.95, n_paths=300)
-    pd.DataFrame(
-        {
-            "series": np.arange(n, dtype=np.int32),
-            "scenario_stock": stock.astype(np.float32),
-            "lead_time_p90": p90_lt.astype(np.float32),
-            "demand28_p95": p95_28.astype(np.float32),
-            "stockout_risk": p90_lt > stock,
-            "excess_risk": stock > p95_28,
-        }
-    ).to_parquet(out_dir / "risk.parquet", index=False)
+    compute_risk(qarr, m5.sales[:, origin - 28 : origin], rho).to_parquet(
+        out_dir / "risk.parquet", index=False
+    )
 
     model_dir = model_root / model.name / "full" / fold.name
     _drivers(model_dir, m5, origin, list(model.families)).to_parquet(
@@ -164,12 +187,7 @@ def build_bundle(
         "generated_at": datetime.now(UTC).isoformat(),
         "series": n,
         "risk": {
-            "definition": (
-                f"SCENARIO stock = {SCENARIO_COVER_DAYS} days of the last 28 days' mean sales. "
-                f"Stockout risk: P90 of demand over {RISK_LEAD_TIME + 1} days "
-                "(lead time + review) exceeds stock. Excess risk: stock exceeds P95 of "
-                f"28-day demand. Quantiles of sums come from copula sample paths, rho={rho}."
-            ),
+            "definition": RISK_DEFINITION.format(k=RISK_LEAD_TIME + 1, r=EXCESS_RATIO, rho=rho),
             "rho": rho,
         },
         "calendar": {
