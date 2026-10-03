@@ -104,13 +104,14 @@ plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 module = [
     "lightgbm.*", "statsforecast.*", "shap.*", "mlflow.*", "optuna.*",
-    "pytorch_forecasting.*", "peft.*", "datasketch.*", "evidently.*", "pandera.*", "tabulate.*", "scipy.*",
+    "pytorch_forecasting.*", "peft.*", "datasketch.*", "evidently.*", "pandera.*", "tabulate.*", "scipy.*", "sklearn.*", "transformers.*",
+    "sentence_transformers.*",
 ]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # torch's nn.Module.__call__ and autograd are untyped; keep the rest of strict mode.
-module = ["demand_intel.models.deep_learning.*"]
+module = ["demand_intel.models.deep_learning.*", "demand_intel.models.nlp.*"]
 disable_error_code = ["no-any-return", "no-untyped-call"]
 
 [tool.pytest.ini_options]

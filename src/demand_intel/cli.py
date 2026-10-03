@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Annotated
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Annotated, Any
 
 import pandas as pd
 import typer
@@ -376,6 +377,108 @@ def nlp_prepare(
     typer.echo(
         f"coverage {summary['lf_coverage']:.3f}, conflicts {summary['lf_conflict_rate']:.3f}"
     )
+
+
+@app.command("nlp-train")
+def nlp_train(
+    models: str = typer.Option(
+        "majority,rules,tfidf,embeddings",
+        help="Comma-separated: majority, rules, tfidf, embeddings, encoder.",
+    ),
+    encoder_epochs: int = typer.Option(3),
+) -> None:
+    """Train NLP models on the training split; score validation/test (spec §7)."""
+    import time
+
+    from demand_intel.models.nlp.evaluate import score, summary_row
+    from demand_intel.models.nlp.labeling import EVENT_TYPES
+    from demand_intel.models.nlp.models import (
+        SEVERITIES,
+        EmbeddingModel,
+        EncoderModel,
+        MajorityModel,
+        RulesModel,
+        TfidfModel,
+    )
+
+    nlp_dir = settings.data_dir / "nlp"
+    docs = pd.read_parquet(nlp_dir / "dataset.parquet")
+    gold_path = nlp_dir / "gold_labels.parquet"
+    gold = pd.read_parquet(gold_path).set_index("doc_id")["label"] if gold_path.exists() else None
+    tr, va, te = (docs[docs["split"] == s] for s in ("train", "validation", "test"))
+    factories: dict[str, Callable[[], Any]] = {
+        "majority": MajorityModel,
+        "rules": RulesModel,
+        "tfidf": TfidfModel,
+        "embeddings": EmbeddingModel,
+        "encoder": lambda: EncoderModel(
+            epochs=encoder_epochs, save_dir=settings.data_dir / "models" / "nlp" / "n3_encoder"
+        ),
+    }
+    out_rows = []
+    pred_dir = nlp_dir / "predictions"
+    pred_dir.mkdir(parents=True, exist_ok=True)
+    for key in [m.strip() for m in models.split(",") if m.strip()]:
+        model = factories[key]()
+        t0 = time.perf_counter()
+        args = (tr["text"].tolist(), tr["weak_label"].tolist(), tr["severity"].tolist())
+        if key == "encoder":
+            model.fit(
+                *args, val=(va["text"].tolist(), va["weak_label"].tolist(), va["severity"].tolist())
+            )
+        else:
+            model.fit(*args)
+        fit_s = time.perf_counter() - t0
+        for split, frame in (("validation", va), ("test", te)):
+            pe, ps = model.predict_proba(frame["text"].tolist())
+            pd.DataFrame(
+                {
+                    "doc_id": frame["doc_id"].to_numpy(),
+                    "event_pred": [EVENT_TYPES[i] for i in pe.argmax(1)],
+                    "event_conf": pe.max(1),
+                    "severity_pred": [SEVERITIES[i] for i in ps.argmax(1)],
+                    "severity_conf": ps.max(1),
+                }
+            ).to_parquet(pred_dir / f"{model.name}__{split}.parquet", index=False)
+            sev = score(ps, frame["severity"].tolist(), SEVERITIES)
+            out_rows.append(
+                summary_row(model.name, "severity", "fda_class", split, sev, fit_seconds=fit_s)
+            )
+            weak = score(pe, frame["weak_label"].tolist(), EVENT_TYPES)
+            out_rows.append(
+                summary_row(model.name, "event_type", "weak", split, weak, fit_seconds=fit_s)
+            )
+            if split == "test" and gold is not None:
+                g = frame["doc_id"].map(gold)
+                has = g.notna().to_numpy()
+                if has.sum():
+                    gs = score(pe[has], g[has].tolist(), EVENT_TYPES)
+                    out_rows.append(
+                        summary_row(
+                            model.name,
+                            "event_type",
+                            "gold",
+                            split,
+                            gs,
+                            fit_seconds=fit_s,
+                            n=int(has.sum()),
+                        )
+                    )
+                    gs.per_class.assign(model=model.name).to_csv(
+                        settings.evaluation_dir / f"nlp_per_class__{model.name}.csv", index=False
+                    )
+                    gs.confusion.to_csv(
+                        settings.evaluation_dir / f"nlp_confusion__{model.name}.csv"
+                    )
+        typer.echo(f"{model.name}: trained in {fit_s:.0f}s")
+    new = pd.DataFrame(out_rows)
+    path = settings.evaluation_dir / "nlp_results.csv"
+    if path.exists():
+        old = pd.read_csv(path)
+        new = pd.concat([old[~old["model"].isin(new["model"].unique())], new], ignore_index=True)
+    new.to_csv(path, index=False)
+    show = new[new["split"] == "test"][["model", "task", "truth", "macro_f1", "accuracy", "ece"]]
+    typer.echo(show.round(3).to_string(index=False))
 
 
 @ingest_app.command("m5")
