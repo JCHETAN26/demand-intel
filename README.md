@@ -47,10 +47,8 @@ Development runs in **GitHub Codespaces**: the devcontainer runs `make install`
 on creation. Add `KAGGLE_USERNAME` and `KAGGLE_KEY` as Codespaces secrets so M5 can be
 downloaded.
 
-The Makefile puts the virtualenv at `~/.venvs/demand-intel` (via `UV_PROJECT_ENVIRONMENT`)
-so that the same commands also work from a local checkout on an exFAT drive, which has no
-symlink support. If you run `uv` directly instead of through `make`, export that variable
-first.
+The virtualenv is `./.venv`. For a local checkout on an exFAT drive (no symlink support),
+export `UV_PROJECT_ENVIRONMENT=~/.venvs/demand-intel` in your shell first.
 
 Each phase installs its heavier dependencies as an extra, for example
 `uv sync --extra ml` or `uv sync --extra deep --extra nlp`.

@@ -26,7 +26,7 @@
       "description": "Kaggle API key, for downloading M5"
     }
   },
-  "postCreateCommand": "pip install --user uv && cp -n .env.example .env && make install",
+  "postCreateCommand": "pipx install uv || pip install --user uv; cp -n .env.example .env && make install",
   "forwardPorts": [
     5432,
     5000,
@@ -54,7 +54,7 @@
         "anthropic.claude-code"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "/home/vscode/.venvs/demand-intel/bin/python"
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python"
       }
     }
   }

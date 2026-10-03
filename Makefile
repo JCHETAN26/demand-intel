@@ -1,8 +1,7 @@
 .PHONY: install lint format typecheck test check up down evaluate
 
-# The repo lives on an exFAT drive, which has no symlinks, so the virtualenv lives in $HOME.
-# Override with `make install UV_PROJECT_ENVIRONMENT=.venv` on a normal filesystem.
-export UV_PROJECT_ENVIRONMENT ?= $(HOME)/.venvs/demand-intel
+# On a filesystem without symlinks (e.g. exFAT), export UV_PROJECT_ENVIRONMENT=~/.venvs/demand-intel
+# in your shell; otherwise uv uses ./.venv.
 export UV_LINK_MODE ?= copy
 
 install:        ## Core + dev deps
