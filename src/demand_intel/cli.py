@@ -5,7 +5,7 @@ import json
 import typer
 
 from demand_intel import SPEC_VERSION, __version__
-from demand_intel.config import settings
+from demand_intel.config import REPO_ROOT, settings
 from demand_intel.forecasting.backtesting.splits import split_manifest
 
 app = typer.Typer(no_args_is_help=True, help="Demand Intelligence pipelines and evaluation.")
@@ -62,6 +62,22 @@ def ingest_m5(
         from demand_intel.pipelines.ingestion.ledger import record
 
         typer.echo(f"  ledger: {record(settings.database_url, report)} new row(s)")
+
+
+@ingest_app.command("weather")
+def ingest_weather(force: bool = typer.Option(False, help="Refetch even if unchanged.")) -> None:
+    """Download Open-Meteo history and build the state × day weather table."""
+    from demand_intel.pipelines.ingestion.weather import build_state_weather, download_weather
+
+    locations = REPO_ROOT / "configs" / "weather_locations.yaml"
+    raw = download_weather(settings.raw_dir, locations, force=force)
+    out = settings.validated_dir / "weather" / "weather_state_daily.parquet"
+    report = build_state_weather(raw, locations, out)
+    typer.echo(f"weather: {report.rows} state-days -> {out}")
+    typer.echo(
+        f"  missing cells {report.missing_cells}, longest gap {report.max_gap_days} d, "
+        f"out-of-range {report.out_of_range_cells}, checks {report.checks}"
+    )
 
 
 if __name__ == "__main__":

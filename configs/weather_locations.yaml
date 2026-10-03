@@ -1,0 +1,25 @@
+# Weather proxy locations (PROJECT_SPEC.md §2.3). M5 gives store locations only at state
+# level, so each state's weather is a population-weighted average of three large metros.
+# Weights are approximate 2015 metro populations (millions); only their ratios matter.
+version: weather_locations.v1
+source: open-meteo archive (ERA5 reanalysis), daily
+variables: [temperature_2m_max, temperature_2m_min, temperature_2m_mean, precipitation_sum, snowfall_sum]
+states:
+  CA:
+    timezone: America/Los_Angeles
+    metros:
+      - {name: los_angeles, lat: 34.05, lon: -118.24, weight: 13.3}
+      - {name: san_francisco, lat: 37.77, lon: -122.42, weight: 4.7}
+      - {name: san_diego, lat: 32.72, lon: -117.16, weight: 3.3}
+  TX:
+    timezone: America/Chicago
+    metros:
+      - {name: dallas, lat: 32.78, lon: -96.80, weight: 7.1}
+      - {name: houston, lat: 29.76, lon: -95.37, weight: 6.7}
+      - {name: san_antonio, lat: 29.42, lon: -98.49, weight: 2.4}
+  WI:
+    timezone: America/Chicago
+    metros:
+      - {name: milwaukee, lat: 43.04, lon: -87.91, weight: 1.57}
+      - {name: madison, lat: 43.07, lon: -89.40, weight: 0.64}
+      - {name: green_bay, lat: 44.51, lon: -88.01, weight: 0.32}

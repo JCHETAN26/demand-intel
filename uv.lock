@@ -935,6 +935,7 @@ name = "demand-intel"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "httpx" },
     { name = "kaggle" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -1009,6 +1010,7 @@ requires-dist = [
     { name = "dvc", extras = ["s3"], marker = "extra == 'versioning'", specifier = ">=3.50" },
     { name = "evidently", marker = "extra == 'monitoring'", specifier = ">=0.4" },
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.111" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "kaggle", specifier = ">=2.0" },
     { name = "lightgbm", marker = "extra == 'ml'", specifier = ">=4.3" },
     { name = "lightning", marker = "extra == 'deep'", specifier = ">=2.3" },
