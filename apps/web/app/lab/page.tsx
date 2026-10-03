@@ -38,7 +38,7 @@ export default function LabPage() {
       {data?.registry && (
         <section className="tiles">
           {Object.entries(data.registry.tasks).map(([task, t]) => (
-            <div className="tile" key={task}><span className="k">{task} champion</span><span className="v mono">{t.champion}</span>
+            <div className="tile" key={task}><span className="k">{task} champion</span><span className="v mono champion">{t.champion}</span>
               <span className="s">{t.challengers.length ? `challengers: ${t.challengers.join(", ")}` : "no open challengers"}</span></div>
           ))}
         </section>
@@ -78,8 +78,9 @@ export default function LabPage() {
       )}
       {!!data?.inventory_policy_differences?.length && (
         <section className="panel"><h2>Inventory policies: total cost differences</h2>
-          <Table rows={data.inventory_policy_differences} cols={[["scenario", "Scenario", txt], ["comparison", "Comparison", txt],
+          <Table rows={data.inventory_policy_differences} cols={[["scenario", "Scenario", (v) => txt(v).replace(" (SCENARIO — not observed data)", "")], ["comparison", "Comparison", txt],
             ["relative", "Relative", p1], ["ci_low", "CI low", (v) => fmt(n(v), 0)], ["ci_high", "CI high", (v) => fmt(n(v), 0)]]} />
+          <p className="muted small">L = lead time in days, p = stockout cost as a multiple of unit price, SL = target service level. Costs, lead times and stock are scenarios, not observed data: M5 has no inventory.</p>
         </section>
       )}
     </>

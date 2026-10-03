@@ -38,8 +38,7 @@ export default function Overview() {
       </header>
       {error && <p className="error">The API is not reachable ({error}). Start it with <span className="mono">make up</span>.</p>}
       {s && (
-        <section className="tiles" aria-label="Headline figures">
-          <div className="tile"><span className="k">Forecast horizon</span><span className="v">{s.horizon_days} days</span></div>
+        <section className="tiles six" aria-label="Headline figures">
           <div className="tile"><span className="k">SKUs monitored</span><span className="v">{s.skus_monitored.toLocaleString()}</span><span className="s">item × store series</span></div>
           <div className="tile"><span className="k">Stockout risk</span><span className="v">{s.stockout_risk.toLocaleString()}</span><span className="s">&gt;10% stockout chance under a simple reorder rule</span></div>
           <div className="tile"><span className="k">Excess inventory risk</span><span className="v">{s.excess_inventory_risk.toLocaleString()}</span><span className="s">simple-rule stock over 1.5× the P95 need</span></div>
