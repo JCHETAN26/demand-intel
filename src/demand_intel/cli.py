@@ -188,6 +188,51 @@ def explain(
     )
 
 
+@app.command("nlp-prepare")
+def nlp_prepare(
+    gold_size: int = typer.Option(600, help="Docs for human validation (spec §7.1)."),
+) -> None:
+    """Weak labels, leakage-safe splits and the stratified human-validation sample."""
+    from demand_intel import SEED
+    from demand_intel.models.nlp.dataset import gold_sample, make_splits
+    from demand_intel.models.nlp.labeling import weak_label_frame
+
+    docs = pd.read_parquet(settings.validated_dir / "text" / "recalls.parquet")
+    docs = docs.merge(weak_label_frame(docs), on="doc_id")
+    splits = make_splits(docs)
+    out = settings.data_dir / "nlp"
+    out.mkdir(parents=True, exist_ok=True)
+    frame = splits.frame
+    frame.to_parquet(out / "dataset.parquet", index=False)
+    test = frame[frame["split"] == "test"]
+    gold = gold_sample(test, "weak_label", gold_size, SEED)
+    gold[
+        [
+            "doc_id",
+            "report_date",
+            "reason_for_recall",
+            "product_description",
+            "weak_label",
+            "severity",
+        ]
+    ].to_parquet(out / "gold_candidates.parquet", index=False)
+    summary = {
+        "splits": splits.stats,
+        "weak_label_distribution": {
+            s: frame.loc[frame["split"] == s, "weak_label"].value_counts().to_dict()
+            for s in ("train", "validation", "test")
+        },
+        "lf_conflict_rate": float(frame["lf_conflict"].mean()),
+        "lf_coverage": float((frame["weak_label"] != "OTHER").mean()),
+        "gold_candidates": len(gold),
+    }
+    (settings.evaluation_dir / "nlp_dataset.json").write_text(json.dumps(summary, indent=2))
+    typer.echo(json.dumps(summary["splits"]))
+    typer.echo(
+        f"coverage {summary['lf_coverage']:.3f}, conflicts {summary['lf_conflict_rate']:.3f}"
+    )
+
+
 @ingest_app.command("m5")
 def ingest_m5(
     download: bool = typer.Option(True, help="Fetch from Kaggle if raw files are missing."),

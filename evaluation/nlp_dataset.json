@@ -1,0 +1,54 @@
+{
+  "splits": {
+    "train": 7840,
+    "validation": 1281,
+    "test": 1031
+  },
+  "weak_label_distribution": {
+    "train": {
+      "PATHOGEN_LISTERIA": 2412,
+      "UNDECLARED_ALLERGEN": 1849,
+      "PATHOGEN_SALMONELLA": 868,
+      "SANITATION_PESTS": 634,
+      "OTHER": 531,
+      "FOREIGN_MATERIAL": 385,
+      "CHEMICAL_CONTAMINANT": 372,
+      "LABELING_OTHER": 312,
+      "PROCESSING_DEFECT": 143,
+      "UNAPPROVED_INGREDIENT": 139,
+      "PATHOGEN_OTHER": 100,
+      "SPOILAGE_QUALITY": 95
+    },
+    "validation": {
+      "PATHOGEN_LISTERIA": 690,
+      "UNDECLARED_ALLERGEN": 205,
+      "FOREIGN_MATERIAL": 119,
+      "PATHOGEN_SALMONELLA": 59,
+      "OTHER": 56,
+      "LABELING_OTHER": 54,
+      "CHEMICAL_CONTAMINANT": 41,
+      "SPOILAGE_QUALITY": 18,
+      "PROCESSING_DEFECT": 18,
+      "PATHOGEN_OTHER": 17,
+      "UNAPPROVED_INGREDIENT": 3,
+      "SANITATION_PESTS": 1
+    },
+    "test": {
+      "OTHER": 207,
+      "FOREIGN_MATERIAL": 206,
+      "UNDECLARED_ALLERGEN": 190,
+      "UNAPPROVED_INGREDIENT": 107,
+      "LABELING_OTHER": 85,
+      "PATHOGEN_SALMONELLA": 69,
+      "PROCESSING_DEFECT": 68,
+      "PATHOGEN_OTHER": 37,
+      "PATHOGEN_LISTERIA": 29,
+      "SANITATION_PESTS": 19,
+      "SPOILAGE_QUALITY": 10,
+      "CHEMICAL_CONTAMINANT": 4
+    }
+  },
+  "lf_conflict_rate": 0.11091410559495665,
+  "lf_coverage": 0.9217888100866825,
+  "gold_candidates": 597
+}
