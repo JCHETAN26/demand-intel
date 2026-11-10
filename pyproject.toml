@@ -107,7 +107,7 @@ plugins = ["pydantic.mypy"]
 module = [
     "lightgbm.*", "statsforecast.*", "shap.*", "mlflow.*", "optuna.*",
     "pytorch_forecasting.*", "peft.*", "datasketch.*", "evidently.*", "pandera.*", "tabulate.*", "scipy.*", "sklearn.*", "transformers.*",
-    "sentence_transformers.*", "boto3.*", "onnxruntime.*",
+    "sentence_transformers.*", "boto3.*", "onnxruntime.*", "torch.*",
 ]
 ignore_missing_imports = true
 
@@ -115,6 +115,8 @@ ignore_missing_imports = true
 # torch's nn.Module.__call__ and autograd are untyped; keep the rest of strict mode.
 module = ["demand_intel.models.deep_learning.*", "demand_intel.models.nlp.*"]
 disable_error_code = ["no-any-return", "no-untyped-call"]
+# torch is an optional extra; without it nn.Module resolves to Any.
+disallow_subclassing_any = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

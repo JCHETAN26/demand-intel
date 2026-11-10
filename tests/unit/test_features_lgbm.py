@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+pytest.importorskip("lightgbm")
+
 from demand_intel.forecasting.backtesting.harness import FoldContext, truncate
 from demand_intel.forecasting.backtesting.splits import BACKTEST_FOLDS, HORIZON
 from demand_intel.forecasting.evaluation.metrics import QUANTILES

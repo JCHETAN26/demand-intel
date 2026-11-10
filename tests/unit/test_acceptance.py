@@ -42,7 +42,8 @@ def test_verdicts_follow_the_evidence(tmp_path: Path) -> None:
         json.dumps(
             {
                 "hardware": {"cores": 4},
-                "configs": {"b": {"/v1/forecast": {"p95_ms": 12.0, "rps": 900}}},
+                "slo": {"/v1/forecast": {"p50_ms": 30, "p95_ms": 100}},
+                "runs": {"b": {"/v1/forecast": {"p95_ms": 12.0, "throughput_rps": 900}}},
             }
         )
     )

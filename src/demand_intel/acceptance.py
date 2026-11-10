@@ -204,13 +204,22 @@ def answer_all(ev: Path) -> list[Verdict]:
 
     sb = _json(ev / "serving_benchmark.json")
     if sb:
-        best = list(sb["configs"].values())[-1]
-        p95 = best["/v1/forecast"]["p95_ms"]
+        # The latest run is the deployed configuration; each endpoint is held to its own p95 SLO.
+        latest = list(sb["runs"].values())[-1]
+        parts, within = [], True
+        for endpoint, slo in sb["slo"].items():
+            if endpoint not in latest:
+                continue
+            p95 = latest[endpoint]["p95_ms"]
+            within &= p95 <= slo["p95_ms"]
+            parts.append(
+                f"{endpoint} p95 {p95:.1f} ms (SLO {slo['p95_ms']:.0f}), "
+                f"{latest[endpoint]['throughput_rps']:.0f} req/s"
+            )
         add(
             "Production: can it serve forecasts within acceptable latency?",
-            "yes" if p95 <= 100 else "no",
-            f"/v1/forecast p95 {p95:.1f} ms (SLO 100 ms), {best['/v1/forecast']['rps']:.0f} req/s, "
-            f"{sb['hardware']['cores']} cores",
+            "yes" if parts and within else "no",
+            "; ".join(parts) + f"; {sb['hardware']['cores']} cores",
         )
     else:
         add(
