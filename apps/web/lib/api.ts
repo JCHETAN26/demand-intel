@@ -27,6 +27,9 @@ export type Summary = {
   risk_definition: string;
   evaluation: Record<string, number>;
   model: string;
+  registry_champion?: string | null;
+  fallback?: boolean | null;
+  fallback_reason?: string | null;
 };
 
 export type SeriesRow = {

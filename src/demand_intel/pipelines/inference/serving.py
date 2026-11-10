@@ -10,13 +10,15 @@ and forecasts d_1942..d_1969, the 28 days that follow. The bundle written to
 - drivers.parquet   per series × day: SHAP contributions grouped into families (units)
 - risk.parquet      per series: SCENARIO stock (7 days of recent mean sales), P90 of 8-day
                     demand and P95 of 28-day demand from copula sample paths, risk flags
-- summary.json      origin, model, headline evaluation metrics, inventory calibration
+- summary.json      origin, served model vs registry champion (and any fallback reason),
+                    headline evaluation metrics, inventory calibration
 
 Forecasts here have no actuals yet: they are the "production" forecasts a planner would
 act on, and the monitoring job scores them once actuals arrive.
 """
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -87,6 +89,69 @@ class BundleInfo:
     series: int
 
 
+FALLBACK_MODEL = "lgbm"
+
+
+class ServingSelectionError(ValueError):
+    """The requested or registered model cannot be published and fallback is not allowed."""
+
+
+@dataclass(frozen=True)
+class ServingChoice:
+    """Which forecaster the bundle publishes, and why.
+
+    The bundle needs quantile maps and TreeSHAP drivers, so only LightGBM models can be
+    published. When the registry champion is something else, the choice records the
+    fallback openly instead of hiding it: `served` differs from `champion`, `fallback` is
+    true and `reason` says why. All of it is written to summary.json and exposed by the API.
+    """
+
+    served: str
+    champion: str
+    fallback: bool
+    reason: str | None
+
+    def provenance(self) -> dict[str, Any]:
+        return {
+            "registry_champion": self.champion,
+            "fallback": self.fallback,
+            "fallback_reason": self.reason,
+        }
+
+
+def choose_serving_model(
+    champion: str,
+    servable: Callable[[str], bool],
+    requested: str = "",
+    allow_fallback: bool = True,
+) -> ServingChoice:
+    """Pick the model to publish: an explicit request, else the champion, else the fallback.
+
+    Anything other than the registry champion is a fallback and carries a reason. With
+    `allow_fallback=False` a non-servable champion raises instead.
+    """
+    if requested:
+        if not servable(requested):
+            raise ServingSelectionError(f"{requested} is not a LightGBM model and cannot be served")
+        if requested == champion:
+            return ServingChoice(requested, champion, False, None)
+        return ServingChoice(
+            requested,
+            champion,
+            True,
+            f"explicit override (--model {requested}); registry champion is {champion}",
+        )
+    if servable(champion):
+        return ServingChoice(champion, champion, False, None)
+    reason = (
+        f"registry champion {champion} is not a LightGBM model (the bundle needs quantile maps "
+        f"and TreeSHAP drivers); serving unpromoted {FALLBACK_MODEL} instead"
+    )
+    if not allow_fallback:
+        raise ServingSelectionError(reason)
+    return ServingChoice(FALLBACK_MODEL, champion, True, reason)
+
+
 def production_fold(m5: M5Data) -> Fold:
     return Fold("production", m5.n_days)
 
@@ -112,6 +177,7 @@ def build_bundle(
     evaluation_dir: Path,
     profile: pd.DataFrame,
     forecaster: LightGBMForecaster | None = None,
+    choice: ServingChoice | None = None,
 ) -> BundleInfo:
     """Train the champion on all history, forecast the next HORIZON days, write the bundle."""
     model = forecaster or LightGBMForecaster("lgbm", model_dir=model_root)
@@ -181,6 +247,12 @@ def build_bundle(
             day_to_date(int(days[-1])).isoformat(),
         ],
         "model": model.name,
+        # Without a choice the bundle was not resolved against the registry: say so (None).
+        **(
+            choice.provenance()
+            if choice
+            else {"registry_champion": None, "fallback": None, "fallback_reason": None}
+        ),
         "model_dir": str(model_dir),
         "families": list(model.families),
         "training_log": model.log,

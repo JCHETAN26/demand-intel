@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -8,7 +9,7 @@ from demand_intel.mlops.registry.gates import Gate, GateReport, evaluate_gates
 from demand_intel.mlops.registry.registry import load_registry, record_decision, tracking_uri
 
 
-def _results(model: str, level: float, bias: float) -> list[dict[str, object]]:
+def _results(model: str, level: float, bias: float) -> list[dict[str, Any]]:
     rows = []
     for fold in ("fold_1", "fold_2", "fold_3", "fold_4", "fold_5", "test"):
         rows.append(
@@ -118,5 +119,8 @@ def test_monitoring_thresholds() -> None:
     rep_ok, _ = forecast_checks(y, y * 0 + 3.0, y * 0 + 10.0, groups, base)
     rep_bad, _ = forecast_checks(y, y * 0 + 9.0, y * 0 + 1.0, groups, base)
     assert rep_bad.status == "alert"
-    flagged = lambda r: sum(c.status != "ok" for c in r.checks)  # noqa: E731
+
+    def flagged(r: Any) -> int:
+        return sum(c.status != "ok" for c in r.checks)
+
     assert flagged(rep_bad) > flagged(rep_ok)

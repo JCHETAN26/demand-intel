@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -20,7 +22,7 @@ PARAMS = {
 
 
 @pytest.fixture(scope="module")
-def client(tmp_path_factory: pytest.TempPathFactory) -> TestClient:
+def client(tmp_path_factory: pytest.TempPathFactory) -> Iterator[TestClient]:
     tmp = tmp_path_factory.mktemp("bundle")
     m5 = synthetic_m5(n_items=3)
     profile = pd.DataFrame(

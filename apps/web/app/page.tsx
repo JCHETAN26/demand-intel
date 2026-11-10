@@ -36,6 +36,12 @@ export default function Overview() {
           {s ? <>Forecasts for {s.forecast_dates[0]} to {s.forecast_dates[1]}, made with data through {s.origin_date} by <span className="mono">{s.model}</span>.</> : "Loading forecasts…"}
         </p>
       </header>
+      {s?.fallback && (
+        <p className="error" role="status">
+          Serving fallback: <span className="mono">{s.model}</span> is not the registry champion
+          (<span className="mono">{s.registry_champion}</span>). {s.fallback_reason}
+        </p>
+      )}
       {error && <p className="error">The API is not reachable ({error}). Start it with <span className="mono">make up</span>.</p>}
       {s && (
         <section className="tiles six" aria-label="Headline figures">

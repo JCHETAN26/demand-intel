@@ -99,7 +99,7 @@ allowed-confusables = ["×", "–", "—", "−", "≤", "≥", "σ", "ρ"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["demand_intel"]
+packages = ["demand_intel", "tests"]
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
 
@@ -107,7 +107,7 @@ plugins = ["pydantic.mypy"]
 module = [
     "lightgbm.*", "statsforecast.*", "shap.*", "mlflow.*", "optuna.*",
     "pytorch_forecasting.*", "peft.*", "datasketch.*", "evidently.*", "pandera.*", "tabulate.*", "scipy.*", "sklearn.*", "transformers.*",
-    "sentence_transformers.*", "boto3.*", "onnxruntime.*", "torch.*",
+    "sentence_transformers.*", "boto3.*", "onnxruntime.*", "torch.*", "airflow.*",
 ]
 ignore_missing_imports = true
 

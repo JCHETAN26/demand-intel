@@ -124,6 +124,10 @@ class ForecastResponse(BaseModel):
     p90: list[float]
     quantiles: dict[str, list[float]]
     model: str
+    # Registry provenance: `model` is what produced these numbers; when it is not the
+    # registry champion, `fallback` is true (see /v1/summary for the reason).
+    registry_champion: str | None = None
+    fallback: bool | None = None
 
 
 @app.get("/v1/health")
@@ -133,6 +137,8 @@ def health() -> dict[str, Any]:
         "status": "ok" if s else "no_bundle",
         "series": len(s.series) if s else 0,
         "forecast_model": s.summary.get("model") if s else None,
+        "registry_champion": s.summary.get("registry_champion") if s else None,
+        "fallback": s.summary.get("fallback") if s else None,
         "event_model": State.events.name,
     }
 
@@ -156,6 +162,8 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
         p90=qmap["p90"],
         quantiles=qmap,
         model=s.summary["model"],
+        registry_champion=s.summary.get("registry_champion"),
+        fallback=s.summary.get("fallback"),
     )
 
 
@@ -267,6 +275,9 @@ def summary() -> dict[str, Any]:
         "risk_definition": s.summary.get("risk", {}).get("definition"),
         "evaluation": s.summary.get("evaluation", {}),
         "model": s.summary.get("model"),
+        "registry_champion": s.summary.get("registry_champion"),
+        "fallback": s.summary.get("fallback"),
+        "fallback_reason": s.summary.get("fallback_reason"),
     }
 
 

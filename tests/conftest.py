@@ -116,8 +116,12 @@ def synthetic_m5(n_items: int = 6, n_days: int = 1941, seed: int = 0) -> M5Data:
             "month": dates.month.astype("int16"),
             "year": dates.year.astype("int16"),
             "d": np.arange(1, cal_days + 1, dtype="int16"),
-            "event_name_1": np.where(np.arange(cal_days) % 97 == 0, "SuperBowl", None),
-            "event_type_1": np.where(np.arange(cal_days) % 97 == 0, "Sporting", None),
+            "event_name_1": np.where(
+                np.arange(cal_days) % 97 == 0, "SuperBowl", np.array(None, dtype=object)
+            ),
+            "event_type_1": np.where(
+                np.arange(cal_days) % 97 == 0, "Sporting", np.array(None, dtype=object)
+            ),
             "event_name_2": None,
             "event_type_2": None,
             "snap_CA": (dates.day <= 10).astype("int8"),

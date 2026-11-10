@@ -36,5 +36,5 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: uv sync --group dev
+      - run: uv sync --group dev --extra ml --extra api
       - run: uv run pytest -m integration || test $? -eq 5  # 5 = no tests collected yet
