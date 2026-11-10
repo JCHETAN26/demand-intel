@@ -37,13 +37,14 @@ evaluate:       ## Regenerate every artifact in PROJECT_SPEC.md §10 from raw da
 	uv run demand-intel ingest text
 	uv run demand-intel splits
 	uv run demand-intel eda
-	scripts/run_forecasting.sh baselines statistical lgbm_full lgbm_panel ablation deep weather_oracle
+	scripts/run_forecasting.sh baselines statistical lgbm_full lgbm_bc lgbm_panel ablation deep weather_oracle
 	uv run demand-intel nlp-prepare
 	uv run demand-intel nlp-train --models majority,rules,tfidf,embeddings,encoder
 	uv run demand-intel nlp-signals --event-source encoder
 	scripts/run_forecasting.sh multimodal
 	$(MAKE) report
 	uv run demand-intel promote --challenger lgbm --population full
+	uv run demand-intel promote --challenger lgbm_bc --population full
 	uv run demand-intel inventory --model lgbm
 	uv run demand-intel forecast-batch
 	uv run demand-intel monitor

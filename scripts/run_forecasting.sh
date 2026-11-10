@@ -15,7 +15,7 @@ run() {  # run <population> <folds> <model...>
     uv run demand-intel backtest "$m" --population "$pop" --folds "$folds"
   done
 }
-steps=("${@:-baselines statistical lgbm_full lgbm_panel ablation deep weather_oracle multimodal}")
+steps=("${@:-baselines statistical lgbm_full lgbm_bc lgbm_panel ablation deep weather_oracle multimodal}")
 for step in ${steps[@]}; do
   case $step in
     baselines) run full all naive seasonal_naive moving_average_28
@@ -24,6 +24,7 @@ for step in ${steps[@]}; do
                  run panel all ses_seasonal croston tsb stat_class_selected ets arima ;;
     lgbm_full) run full all lgbm ;;
     lgbm_panel) run panel all lgbm ;;
+    lgbm_bc) run full all lgbm_bc ;;  # spec v0.5 bias-corrected challenger
     ablation) run panel all lgbm_abl1_sales lgbm_abl2_calendar lgbm_abl3_snap lgbm_abl4_price \
                             lgbm_abl5_hierarchy lgbm_abl6_weather ;;
     deep) run panel all lstm tft ;;
