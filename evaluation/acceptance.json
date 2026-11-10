@@ -41,8 +41,8 @@
   },
   {
     "question": "Production: can it serve forecasts within acceptable latency?",
-    "verdict": "pending",
-    "evidence": "benchmark not run"
+    "verdict": "yes",
+    "evidence": "/v1/forecast p95 9.4 ms (SLO 100), 749 req/s; /v1/inventory/recommend p95 15.6 ms (SLO 150), 382 req/s; /v1/events/extract p95 8.1 ms (SLO 300), 759 req/s; 4 cores"
   },
   {
     "question": "Monitoring: can we detect degraded data/model/system behaviour?",
