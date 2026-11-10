@@ -75,7 +75,7 @@ def test_negative_sales_fail_the_run_and_are_quarantined(m5_dirs: M5Dirs) -> Non
 
     q = pd.read_parquet(m5_dirs.quarantine / "sales_train_evaluation.parquet")
     assert q["_source_row"].tolist() == [2]
-    assert list(q.loc[0, "_reasons"]) == ["sales:negative"]
+    assert list(q["_reasons"].loc[0]) == ["sales:negative"]
 
 
 def test_malformed_and_blank_sales_cells_are_flagged(m5_dirs: M5Dirs) -> None:
@@ -89,14 +89,14 @@ def test_malformed_and_blank_sales_cells_are_flagged(m5_dirs: M5Dirs) -> None:
     q = pd.read_parquet(m5_dirs.quarantine / "sales_train_evaluation.parquet").set_index(
         "_source_row"
     )
-    assert "sales:unparseable" in q.loc[1, "_reasons"]
-    assert "sales:missing" in q.loc[4, "_reasons"]
-    assert "sales:non_integer" in q.loc[3, "_reasons"]
+    assert "sales:unparseable" in q["_reasons"].loc[1]
+    assert "sales:missing" in q["_reasons"].loc[4]
+    assert "sales:non_integer" in q["_reasons"].loc[3]
 
 
 def test_validation_file_must_match_evaluation_prefix(m5_dirs: M5Dirs) -> None:
     val = sales(EXPECT.validation_days, "validation")
-    val.loc[0, "d_3"] = str(int(val.loc[0, "d_3"]) + 1)
+    val.loc[0, "d_3"] = str(int(val["d_3"].loc[0]) + 1)
     m5_dirs.write("sales_train_validation.csv", val)
     with pytest.raises(IngestionError) as err:
         run(m5_dirs)

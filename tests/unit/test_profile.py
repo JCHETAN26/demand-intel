@@ -61,7 +61,7 @@ def test_zero_run_flagged_only_when_implausible_and_priced() -> None:
     slow = [1 if i % 10 == 0 else 0 for i in range(60)] + [0] * 20 + [1] * 10  # plausible
     zr = suspicious_zero_runs(_m5([busy, slow]))
     assert zr.runs["series_idx"].tolist() == [0]
-    assert zr.runs.loc[0, ["start_day", "end_day", "length"]].tolist() == [61, 80, 20]
+    assert zr.runs[["start_day", "end_day", "length"]].iloc[0].tolist() == [61, 80, 20]
     assert zr.runs.loc[0, "kind"] == "stockout"
     dormant = suspicious_zero_runs(_m5([[5] * 60 + [0] * 70 + [5] * 5]))
     assert dormant.runs.loc[0, "kind"] == "dormant"
@@ -102,7 +102,7 @@ def test_load_m5_roundtrip(m5_dirs: M5Dirs) -> None:
     ingest_m5(m5_dirs.raw, m5_dirs.out, m5_dirs.quarantine, expectations=EXPECT)
     m5 = load_m5(m5_dirs.out)
     wide = sales(EXPECT.evaluation_days, "evaluation")
-    for i, row in m5.series.iterrows():
+    for i, row in enumerate(m5.series.to_dict("records")):
         src = wide[(wide["item_id"] == row["item_id"]) & (wide["store_id"] == row["store_id"])]
         expected = src[[f"d_{t}" for t in range(1, 15)]].astype(int).to_numpy()[0]
         assert m5.sales[i].tolist() == expected.tolist()

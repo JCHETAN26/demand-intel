@@ -45,7 +45,7 @@ def test_build_recalls_validates_and_quarantines(tmp_path: Path) -> None:
     assert (rep.total, rep.loaded, rep.rejected) == (6, 1, 5)
     out = pd.read_parquet(tmp_path / "out.parquet")
     assert out.loc[0, "doc_id"] == "F-1-2014"
-    assert list(out.loc[0, "states"]) == ["CA", "TX"]
+    assert list(out["states"].loc[0]) == ["CA", "TX"]
     assert out.loc[0, "severity"] == "high"
     q = pd.read_parquet(tmp_path / "q.parquet")
     flat = {r for rs in q["_reasons"] for r in rs}

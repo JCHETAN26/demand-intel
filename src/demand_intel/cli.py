@@ -128,23 +128,49 @@ def backtest(
 
 @app.command("forecast-batch")
 def forecast_batch(
-    model: str = typer.Option("", help="LightGBM variant to publish (default: registry champion)."),
+    model: str = typer.Option(
+        "", help="LightGBM variant to publish instead of the champion (recorded as a fallback)."
+    ),
+    strict: bool = typer.Option(
+        False, "--strict", help="Fail instead of falling back when the champion is not servable."
+    ),
 ) -> None:
-    """Retrain the champion on all history and write the serving bundle (data/serving)."""
+    """Retrain the champion on all history and write the serving bundle (data/serving).
+
+    Only LightGBM models can be published. If the registry champion is not one, the
+    bundle falls back to `lgbm` and says so: a warning here, and `registry_champion`,
+    `fallback` and `fallback_reason` in summary.json and in the API's health and summary.
+    """
+    import logging
+
     from demand_intel.data import load_m5
     from demand_intel.mlops.registry.registry import load_registry
     from demand_intel.models.lgbm.model import LightGBMForecaster
     from demand_intel.models.registry import make
-    from demand_intel.pipelines.inference.serving import build_bundle
-
-    name = (
-        model
-        or load_registry(settings.evaluation_dir / "registry.json")["tasks"]["forecast"]["champion"]
+    from demand_intel.pipelines.inference.serving import (
+        ServingSelectionError,
+        build_bundle,
+        choose_serving_model,
     )
-    forecaster = make(name)
-    if not isinstance(forecaster, LightGBMForecaster):
-        typer.echo(f"{name} is not a LightGBM model; publishing lgbm instead")
-        forecaster = make("lgbm")
+
+    champion = load_registry(settings.evaluation_dir / "registry.json")["tasks"]["forecast"][
+        "champion"
+    ]
+    try:
+        choice = choose_serving_model(
+            champion,
+            servable=lambda n: isinstance(make(n), LightGBMForecaster),
+            requested=model,
+            allow_fallback=not strict,
+        )
+    except ServingSelectionError as e:
+        typer.echo(f"forecast-batch: {e}", err=True)
+        raise typer.Exit(2) from e
+    if choice.fallback:
+        msg = f"SERVING FALLBACK: {choice.reason}"
+        logging.getLogger("demand_intel.serving").warning(msg)
+        typer.secho(msg, err=True, fg=typer.colors.YELLOW)
+    forecaster = make(choice.served)
 
     m5 = load_m5(settings.validated_dir / "m5")
     profile = pd.read_parquet(settings.validated_dir / "m5" / "series_profile.parquet")
@@ -155,8 +181,10 @@ def forecast_batch(
         settings.evaluation_dir,
         profile,
         forecaster=forecaster,  # type: ignore[arg-type]
+        choice=choice,
     )
-    typer.echo(f"bundle: {info.path} (origin d_{info.origin}, {info.series} series, {info.model})")
+    served = info.model if not choice.fallback else f"{info.model}, FALLBACK from {champion}"
+    typer.echo(f"bundle: {info.path} (origin d_{info.origin}, {info.series} series, {served})")
     _write_bundle_extras(info.path)
 
 
