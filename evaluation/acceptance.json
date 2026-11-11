@@ -17,7 +17,7 @@
   {
     "question": "Uncertainty: are P10/P90 calibrated?",
     "verdict": "yes",
-    "evidence": "lgbm: P10 and P90 inside the discrete calibration bracket on 5/5 backtest folds"
+    "evidence": "lgbm_bc: P10 and P90 inside the discrete calibration bracket on 5/5 backtest folds"
   },
   {
     "question": "NLP: does the fine-tuned model beat simple baselines?",
@@ -37,7 +37,7 @@
   {
     "question": "MLOps: can the system train, evaluate, register and deploy reproducibly?",
     "verdict": "yes",
-    "evidence": "1 registry decisions with gate reports; champion seasonal_naive; DAGs import cleanly; `make evaluate` regenerates every artifact"
+    "evidence": "2 registry decisions with gate reports; champion lgbm_bc; DAGs import cleanly; `make evaluate` regenerates every artifact"
   },
   {
     "question": "Production: can it serve forecasts within acceptable latency?",
@@ -47,6 +47,6 @@
   {
     "question": "Monitoring: can we detect degraded data/model/system behaviour?",
     "verdict": "yes",
-    "evidence": "forecast checks alert, data drift ok, NLP alert; Prometheus alert rules and CloudWatch alarms cover latency, errors and availability"
+    "evidence": "forecast checks warn, data drift ok, NLP alert; Prometheus alert rules and CloudWatch alarms cover latency, errors and availability"
   }
 ]

@@ -1,11 +1,12 @@
 {
   "tasks": {
     "forecast": {
-      "champion": "seasonal_naive",
-      "since": null,
+      "champion": "lgbm_bc",
+      "since": "2026-11-11T02:42:35.373783+00:00",
       "challengers": [
         "lgbm"
-      ]
+      ],
+      "previous_champion": "seasonal_naive"
     },
     "nlp_event": {
       "champion": "rules-v1",
@@ -49,6 +50,42 @@
         }
       ],
       "mlflow_version": null
+    },
+    {
+      "task": "forecast",
+      "at": "2026-11-11T02:42:35.373783+00:00",
+      "challenger": "lgbm_bc",
+      "champion": "seasonal_naive",
+      "population": "full",
+      "promote": true,
+      "gates": [
+        {
+          "name": "improvement",
+          "passed": true,
+          "detail": "\u0394 level-12 WRMSSE -0.3014 (95% CI -0.3120 to -0.2922), wins 5/5 folds, Wilcoxon p=0"
+        },
+        {
+          "name": "test",
+          "passed": true,
+          "detail": "test WRMSSE 0.6218425533572511 vs champion 0.8697007022454667 \u00d7 1.01"
+        },
+        {
+          "name": "no_regression",
+          "passed": true,
+          "detail": "worst slice ratio 0.751 (cat_id=FOODS); limit 1.03"
+        },
+        {
+          "name": "bias_and_calibration",
+          "passed": true,
+          "detail": "test bias -0.0462 (limit \u00b10.05); P10/P90 calibrated on 5/5 folds"
+        },
+        {
+          "name": "data",
+          "passed": true,
+          "detail": "ingestion manifest: all error-level checks passed"
+        }
+      ],
+      "mlflow_version": "1"
     }
   ]
 }
