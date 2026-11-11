@@ -1,164 +1,242 @@
 {
-  "model": "seasonal_naive",
+  "model": "lgbm_bc",
   "window": "test",
   "forecast": {
-    "status": "alert",
+    "status": "warn",
     "checks": [
       {
         "name": "wape:cat_id=FOODS",
-        "value": -0.07297450312618381,
+        "value": -0.07659000215199063,
         "status": "ok",
-        "detail": "WAPE 0.787 vs backtest 0.849"
+        "detail": "WAPE 0.651 vs backtest 0.706"
       },
       {
         "name": "bias:cat_id=FOODS",
-        "value": -0.09027877879320784,
+        "value": -0.05510745831660938,
         "status": "warn",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:cat_id=FOODS",
+        "value": 0.9180311164131624,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:cat_id=HOBBIES",
-        "value": -0.03719673122322653,
+        "value": -0.03517004655751965,
         "status": "ok",
-        "detail": "WAPE 1.186 vs backtest 1.232"
+        "detail": "WAPE 1.006 vs backtest 1.043"
       },
       {
         "name": "bias:cat_id=HOBBIES",
-        "value": -0.05089076094462091,
-        "status": "warn",
+        "value": -0.048607557646058445,
+        "status": "ok",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:cat_id=HOBBIES",
+        "value": 0.9365233881163084,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:cat_id=HOUSEHOLD",
-        "value": -0.036396557472720414,
+        "value": -0.01790523507785091,
         "status": "ok",
-        "detail": "WAPE 0.951 vs backtest 0.987"
+        "detail": "WAPE 0.802 vs backtest 0.816"
       },
       {
         "name": "bias:cat_id=HOUSEHOLD",
-        "value": -0.03385787876649495,
+        "value": -0.01926923533593508,
         "status": "ok",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:cat_id=HOUSEHOLD",
+        "value": 0.9427445763405649,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:store_id=CA_1",
-        "value": -0.04273270869682044,
+        "value": -0.04150787733497474,
         "status": "ok",
-        "detail": "WAPE 0.868 vs backtest 0.907"
+        "detail": "WAPE 0.723 vs backtest 0.754"
       },
       {
         "name": "bias:store_id=CA_1",
-        "value": -0.05556881938641518,
+        "value": -0.05065624486602313,
         "status": "warn",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:store_id=CA_1",
+        "value": 0.9228552687063675,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:store_id=CA_2",
-        "value": -0.08308655706465884,
+        "value": -0.07839806352987788,
         "status": "ok",
-        "detail": "WAPE 0.876 vs backtest 0.955"
+        "detail": "WAPE 0.715 vs backtest 0.776"
       },
       {
         "name": "bias:store_id=CA_2",
-        "value": -0.07077941619018958,
+        "value": -0.08459119690203307,
         "status": "warn",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:store_id=CA_2",
+        "value": 0.9214028018554092,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:store_id=CA_3",
-        "value": -0.04279927675251882,
+        "value": -0.022697877678549916,
         "status": "ok",
-        "detail": "WAPE 0.803 vs backtest 0.839"
+        "detail": "WAPE 0.659 vs backtest 0.674"
       },
       {
         "name": "bias:store_id=CA_3",
-        "value": -0.02447536496350365,
+        "value": 0.016254456445350004,
         "status": "ok",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:store_id=CA_3",
+        "value": 0.9267207046806916,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:store_id=CA_4",
-        "value": -0.039950741876093265,
+        "value": -0.06423441937363317,
         "status": "ok",
-        "detail": "WAPE 1.045 vs backtest 1.089"
+        "detail": "WAPE 0.865 vs backtest 0.924"
       },
       {
         "name": "bias:store_id=CA_4",
-        "value": -0.021177306043774886,
-        "status": "ok",
+        "value": -0.05970295422251939,
+        "status": "warn",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:store_id=CA_4",
+        "value": 0.9336199222227428,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:store_id=TX_1",
-        "value": -0.06531486546564436,
+        "value": -0.07363524404479671,
         "status": "ok",
-        "detail": "WAPE 0.891 vs backtest 0.953"
+        "detail": "WAPE 0.765 vs backtest 0.826"
       },
       {
         "name": "bias:store_id=TX_1",
-        "value": -0.05264992668997549,
-        "status": "warn",
+        "value": -0.04993370680917647,
+        "status": "ok",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:store_id=TX_1",
+        "value": 0.9350372487466617,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:store_id=TX_2",
-        "value": -0.05435432341030322,
+        "value": -0.050438674289547625,
         "status": "ok",
-        "detail": "WAPE 0.855 vs backtest 0.904"
+        "detail": "WAPE 0.726 vs backtest 0.764"
       },
       {
         "name": "bias:store_id=TX_2",
-        "value": -0.07876242863835915,
-        "status": "warn",
+        "value": -0.03161851649814942,
+        "status": "ok",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:store_id=TX_2",
+        "value": 0.9358689031532587,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:store_id=TX_3",
-        "value": -0.048717955788104006,
+        "value": -0.0591311883890101,
         "status": "ok",
-        "detail": "WAPE 0.862 vs backtest 0.906"
+        "detail": "WAPE 0.727 vs backtest 0.773"
       },
       {
         "name": "bias:store_id=TX_3",
-        "value": -0.12491210016293629,
-        "status": "alert",
+        "value": -0.07676958737652259,
+        "status": "warn",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:store_id=TX_3",
+        "value": 0.9273298036827062,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:store_id=WI_1",
-        "value": -0.07335187778477936,
+        "value": -0.06944388689745928,
         "status": "ok",
-        "detail": "WAPE 0.895 vs backtest 0.966"
+        "detail": "WAPE 0.731 vs backtest 0.786"
       },
       {
         "name": "bias:store_id=WI_1",
-        "value": -0.05702394080609014,
+        "value": -0.059257376213383055,
         "status": "warn",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:store_id=WI_1",
+        "value": 0.9328116947008387,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:store_id=WI_2",
-        "value": -0.10839063732366916,
+        "value": -0.09113417178463379,
         "status": "ok",
-        "detail": "WAPE 0.798 vs backtest 0.895"
+        "detail": "WAPE 0.670 vs backtest 0.737"
       },
       {
         "name": "bias:store_id=WI_2",
-        "value": -0.1448797215150413,
-        "status": "alert",
+        "value": -0.05001949300993041,
+        "status": "warn",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:store_id=WI_2",
+        "value": 0.9298599072295366,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       },
       {
         "name": "wape:store_id=WI_3",
-        "value": -0.06402540723459105,
+        "value": -0.06351663740036328,
         "status": "ok",
-        "detail": "WAPE 0.841 vs backtest 0.899"
+        "detail": "WAPE 0.714 vs backtest 0.762"
       },
       {
         "name": "bias:store_id=WI_3",
-        "value": -0.09001089087344805,
-        "status": "warn",
+        "value": -0.04571167124152115,
+        "status": "ok",
         "detail": ""
+      },
+      {
+        "name": "coverage_p90:store_id=WI_3",
+        "value": 0.9339361851660967,
+        "status": "ok",
+        "detail": "share of actuals at or below P90"
       }
     ]
   },

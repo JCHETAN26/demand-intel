@@ -19,7 +19,7 @@ change is in its change log.
 
 | Question | Answer | Evidence |
 |---|---|---|
-| Does the model beat a seasonal naive baseline? | **Yes.** Test WRMSSE 0.640 vs 0.870 (−26%) | Δ −0.30 (95% CI −0.31 to −0.29), wins 5/5 backtest folds |
+| Does the model beat a seasonal naive baseline? | **Yes.** Test WRMSSE 0.622 vs 0.870 (−28%) | Δ −0.30 (95% CI −0.31 to −0.29), wins 5/5 backtest folds; promoted through every gate |
 | Does ML beat the best statistical model? | **Yes on all series, not significant on the 3,000-series panel** | vs per-class stats model: wins 5/5 folds; vs ETS/ARIMA on panel: CI crosses 0 |
 | Do LSTM / TFT justify their cost? | **No** | No significant gain over LightGBM; TFT takes 924 s/fold vs 63 s |
 | Are the P10 / P90 quantiles calibrated? | **Yes** | Inside the discrete-count calibration bracket on 5/5 folds |
@@ -32,15 +32,28 @@ Full verdicts with confidence intervals: [`docs/acceptance.md`](docs/acceptance.
 Inventory costs, lead times and stock levels are **scenarios** (M5 has no stock data) and are
 labelled that way everywhere they appear.
 
-### The promotion gate said no, and the champion stayed
+### The promotion gate said no, then the fix was pre-registered and it said yes
 
-LightGBM passed four of the five promotion gates: improvement, test window, no slice regression
-and data quality. It failed the fifth: test-window bias was **−0.0503 against a ±0.05 limit**.
-Under the pre-registered rules it was not promoted, so the registered champion is still seasonal
-naive ([`evaluation/registry.json`](evaluation/registry.json)). Relaxing the limit after seeing
-the result would be the cherry-picking the spec forbids. The fix is a bias-correction step that
-is pre-registered and validated on the backtest folds before the gate is rerun (see
-[Roadmap](#roadmap)).
+Plain LightGBM (`lgbm`) passed four of the five promotion gates: improvement, test window, no
+slice regression and data quality. It failed the fifth: test-window bias was **−0.0503 against a
+±0.05 limit**, so it was not promoted and seasonal naive stayed champion. Loosening the limit
+after seeing the result would be the cherry-picking the spec forbids.
+
+Instead, a fix was written into the spec change log **before** it was run (spec v0.5):
+`lgbm_bc` scales the point forecast by a per-category factor Σy/Σŷ learned on each fold's 28-day
+pre-origin window, clipped to ±10%, with the gates unchanged. Result:
+
+| | backtest WRMSSE | test WRMSSE | backtest bias | test bias | gate |
+|---|---|---|---|---|---|
+| `lgbm` | 0.674 | 0.640 | −0.041 | **−0.0503** | rejected |
+| `lgbm_bc` | 0.644 | 0.622 | −0.013 | **−0.0462** | **promoted** |
+
+`lgbm_bc` is now the registered and served champion
+([`evaluation/registry.json`](evaluation/registry.json) records both decisions with every gate).
+The honest reading: the correction removes most of the backtest bias, but on the test window it
+clears the limit by only 0.004, so the under-forecast is reduced, not solved. The live monitor
+still flags FOODS (−5.5%) and a few stores (see
+[`evaluation/monitoring_report.json`](evaluation/monitoring_report.json)).
 
 ---
 
@@ -194,7 +207,8 @@ docs/                   generated EDA and acceptance reports
 - **Inventory results are simulated.** M5 has no on-hand stock, lead times or costs. The policy
   ranking holds across the stockout-cost scenarios tested, but the dollar figures are not real
   savings.
-- **The served champion is seasonal naive** until LightGBM passes the bias gate (see above).
+- **Bias is reduced, not solved.** `lgbm_bc` clears the ±5% gate by 0.004 on the test window;
+  the monitor still warns on FOODS and six stores (−5% to −8.5%).
 - **NLP verdict pending.** The fine-tuned encoder cannot be judged until the human-labelled test
   set is complete. Weak-label scores are not reported as accuracy.
 - **Serving benchmark** runs client and server on one 4-vCPU machine, not the 1 vCPU / 2 GB
@@ -202,7 +216,7 @@ docs/                   generated EDA and acceptance reports
 
 ## Roadmap
 
-- [ ] Pre-registered bias correction for LightGBM, then rerun the promotion gate
+- [x] Pre-registered bias correction for LightGBM, then rerun the promotion gate (`lgbm_bc` promoted)
 - [ ] Finish the human-labelled recall test set and close the NLP question
 - [ ] Rerun the serving benchmark on the target container size
 - [ ] Public demo deployment
